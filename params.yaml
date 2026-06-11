@@ -1,0 +1,32 @@
+general:
+  seed: 42
+
+display:
+  min_brightness: 0.2 # cd/m^2
+  max_brightness: 250.0 # cd/m^2
+  distance_cm: 50
+  ppi: 141
+  gamma: 2.2
+
+stimulus:
+  canvas_height: 1080
+  canvas_width: 1920
+  outer_box_size: 128
+  inner_box_size: 64
+  margin: 60 # gap between the two fields
+  diff: 32 # offset of inner box inside outer box
+  center_y: 350
+
+luminance:
+  background: 0.2
+  outer: 19.0
+  inner: 2.3
+
+visual:
+  d_prime: 2.5 # критерий обнаружения (порог сигнал/шум идеального наблюдателя, примерно 2-3)
+
+noise:
+  sigma: 25 # std in pixels, applies after render
+
+output:
+  path: "output/stimulus.png"
