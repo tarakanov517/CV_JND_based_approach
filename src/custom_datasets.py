@@ -8,10 +8,10 @@ from torchvision import transforms
 
 
 class STL10RGBDataset(Dataset):
-    def __init__(self, hf_dataset) -> None:
+    def __init__(self, hf_dataset, transform=None) -> None:
         super().__init__()
         self.dataset = hf_dataset
-        self.to_tensor = transforms.ToTensor()
+        self.transform = transform or transforms.ToTensor()
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -20,7 +20,7 @@ class STL10RGBDataset(Dataset):
         item = self.dataset[idx]
         image = item["image"].convert("RGB")
         label = item["label"]
-        image = self.to_tensor(image)
+        image = self.transform(image)
         label = torch.tensor(label, dtype=torch.long)
         return image, label
 
@@ -41,7 +41,6 @@ class SimkinDataset(Dataset):
             for row in csv.DictReader(f):
                 labels[row["filename"]] = int(row["visible"])
 
-        # Берём только те PNG, для которых есть метка в CSV
         self.samples = [
             (data_dir / fname, vis)
             for fname, vis in labels.items()
@@ -58,6 +57,4 @@ class SimkinDataset(Dataset):
         img = img.repeat(3, 1, 1)                                 # [3,H,W]
         label = torch.tensor(visible, dtype=torch.float32)
         return img, label
-        
-
-        
+    

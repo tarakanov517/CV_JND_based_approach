@@ -7,6 +7,7 @@ import rootutils
 from omegaconf import OmegaConf
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
+from torchvision import transforms
 from tqdm import tqdm
 from datasets import load_dataset
 
@@ -17,11 +18,26 @@ from src.model import CustomResNet
 from src.custom_datasets import SimkinDataset, STL10RGBDataset
 
 
+train_transform = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomCrop(96, padding=8),
+    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+
+test_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+
+
 def train_one_epoch(model, stl_loader, simkin_iter, optimizer,
                     cls_criterion, simkin_criterion, lambda_simkin, device):
     model.train()
 
-    total_loss = 0.0
+    total_cls_loss = 0.0
+    total_simkin_loss = 0.0
     correct = 0
     total = 0
 
@@ -47,12 +63,13 @@ def train_one_epoch(model, stl_loader, simkin_iter, optimizer,
         loss.backward()
         optimizer.step()
 
-        total_loss += loss_cls.item() * stl_imgs.size(0)
+        total_cls_loss += loss_cls.item() * stl_imgs.size(0)
+        total_simkin_loss += loss_simkin.item() * simkin_imgs.size(0)
         preds = cls_logits.argmax(dim=1)
         correct += (preds == stl_labels).sum().item()
         total += stl_labels.size(0)
 
-    return total_loss / total, correct / total
+    return total_cls_loss / total, total_simkin_loss / total, correct / total
 
 
 @torch.no_grad()
@@ -100,12 +117,13 @@ def train_model(
     simkin_iter = cycle(train_simkin_loader)
 
     best_acc = 0.0
-    history = {"train_loss": [], "train_acc": [], "test_loss": [], "test_acc": []}
+    history = {"train_loss": [], "train_simkin_loss": [], "train_acc": [],
+               "test_loss": [], "test_acc": []}
 
     for epoch in range(1, epochs + 1):
         print(f"\nEpoch {epoch}/{epochs}")
 
-        train_loss, train_acc = train_one_epoch(
+        train_loss, train_simkin_loss, train_acc = train_one_epoch(
             model, train_stl_loader, simkin_iter,
             optimizer, cls_criterion, simkin_criterion, lambda_simkin, device
         )
@@ -113,11 +131,12 @@ def train_model(
         scheduler.step()
 
         history["train_loss"].append(train_loss)
+        history["train_simkin_loss"].append(train_simkin_loss)
         history["train_acc"].append(train_acc)
         history["test_loss"].append(test_loss)
         history["test_acc"].append(test_acc)
 
-        print(f"train loss: {train_loss:.4f} | train acc: {train_acc:.4f}")
+        print(f"train cls_loss: {train_loss:.4f} | simkin_loss: {train_simkin_loss:.4f} | train acc: {train_acc:.4f}")
         print(f"test  loss: {test_loss:.4f} | test  acc: {test_acc:.4f}")
 
         if test_acc > best_acc:
@@ -133,17 +152,17 @@ def main(cfg):
 
     # STL-10
     dataset_stl  = load_dataset("jxie/stl10")
-    train_rgb_stl = STL10RGBDataset(dataset_stl["train"])
-    test_rgb_stl = STL10RGBDataset(dataset_stl["test"])
+    train_rgb_stl = STL10RGBDataset(dataset_stl["train"], transform=train_transform)
+    test_rgb_stl  = STL10RGBDataset(dataset_stl["test"],  transform=test_transform)
 
     simkin_full = SimkinDataset(
         data_dir=Path(cfg.simkin_data_dir),
         csv_path=Path(cfg.simkin_csv_path),
     )
-    
+
     n_train = int(len(simkin_full) * cfg.train_size)
     n_test = len(simkin_full) - n_train
-    
+
     train_simkin, test_simkin = random_split(
         simkin_full, [n_train, n_test],
         generator=torch.Generator().manual_seed(42)
