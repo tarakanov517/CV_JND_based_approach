@@ -28,5 +28,15 @@ visual:
 noise:
   sigma: 25 # std in pixels, applies after render
 
-output:
-  path: "output/stimulus.png"
+train:
+  simkin_data_dir: "output/dataset_8_1"
+  simkin_csv_path: "output/labels_8_1.csv"
+  train_size: 0.8
+  num_workers: 12
+  batch_size_class: 7
+  batch_size_penalty: 3
+  lambda_simkin: 0.4
+  lr: 1e-3
+  model_name: "ResNetSIM"
+  weight_decay: 1e-4
+  epochs: 10
