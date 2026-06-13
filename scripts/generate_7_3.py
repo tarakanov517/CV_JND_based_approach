@@ -102,8 +102,8 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
 
 
 def main(cfg: DictConfig):
-    out_dir = make_dir(Path(cfg.general.output_folder).parent / "dataset_7_3", delete_if_exist=True)
-    csv_path = Path(cfg.general.output_folder).parent / "labels_7_3.csv"
+    out_dir = make_dir(Path(cfg.general.output_folder) / "dataset_7_3", delete_if_exist=True)
+    csv_path = Path(cfg.general.output_folder) / "labels_7_3.csv"
 
     print(f"φ₀ = {phi0_arcmin(cfg):.3f} arcmin/pixel")
     

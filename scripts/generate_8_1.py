@@ -34,7 +34,7 @@ SLOPE_FORMS = [                             # формы спада
     'sharp', 'hyperbolic', 'exponential', 'gaussian', 'triangle', 'cosine',
 ]
 PHI_V = 8                                    # ширина выброса (пикс.), фиксирована
-SAMPLES_PER_COMBO = 1                        # проб на комбинацию параметров
+SAMPLES_PER_COMBO = 5                        # проб на комбинацию параметров
 
 
 def sample_luminance(cfg: DictConfig) -> DictConfig:
@@ -146,8 +146,8 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
 
 
 def main(cfg: DictConfig):
-    out_dir  = make_dir(Path(cfg.general.output_folder).parent / "dataset_8_1", delete_if_exist=True)
-    csv_path = Path(cfg.general.output_folder).parent / "labels_8_1.csv"
+    out_dir  = make_dir(Path(cfg.general.output_folder) / "dataset_8_1", delete_if_exist=True)
+    csv_path = Path(cfg.general.output_folder) / "labels_8_1.csv"
 
     tasks = build_tasks(cfg)
     rows = Parallel(n_jobs=os.cpu_count(), backend="threading")(
