@@ -1,4 +1,5 @@
 general:
+  output_folder: "output"
   seed: 42
 
 display:

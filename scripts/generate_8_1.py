@@ -146,8 +146,8 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
 
 
 def main(cfg: DictConfig):
-    out_dir  = make_dir(Path(cfg.output.path).parent / "dataset_8_1", delete_if_exist=True)
-    csv_path = Path(cfg.output.path).parent / "labels_8_1.csv"
+    out_dir  = make_dir(Path(cfg.general.output_folder).parent / "dataset_8_1", delete_if_exist=True)
+    csv_path = Path(cfg.general.output_folder).parent / "labels_8_1.csv"
 
     tasks = build_tasks(cfg)
     rows = Parallel(n_jobs=os.cpu_count(), backend="threading")(
