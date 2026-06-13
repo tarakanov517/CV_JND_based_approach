@@ -5,7 +5,11 @@
     phi_a -- размер объекта: 1, 2, 4, 8, 16, 32, 64 пикселей
     epsilon -- относительный размах выброса: 0, 4, 16, 32
     slope_form -- форма спада: 6 видов по формулам 8.1–8.6
-    delta_L -- контраст (сэмплируется случайно)
+    psi -- целевое отношение сигнал/шум, лог-равномерно в [PSI_MIN, PSI_MAX]
+
+Контраст НЕ сэмплируется вслепую: задаём целевое psi = ‖s‖/(d'·σ) и подбираем
+L_inner так, чтобы энергия сигнала попала в psi·d'·σ. psi симметрично (в логарифме)
+вокруг порога 1 → полный спектр сложности (очевидно видно / не видно / граница) и ~50/50.
 
 Запуск:
     python scripts/generate_8_1.py
@@ -25,6 +29,7 @@ from tqdm import tqdm
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
 from src.stimulus import luminance_map_to_canvas, add_overshoots, add_noise
+from src.display import cd_to_pixel
 from src.common import make_dir
 from src.visibility_funcs import is_visible_8_1
 
@@ -35,17 +40,47 @@ SLOPE_FORMS = [                             # формы спада
 ]
 PHI_V = 8                                    # ширина выброса (пикс.), фиксирована
 SAMPLES_PER_COMBO = 5                        # проб на комбинацию параметров
+PSI_MIN, PSI_MAX = 0.2, 5.0                  # диапазон целевого сигнал/шум (порог = 1)
+L_OUTER_MIN = 3.0                            # нижняя граница яркости фона (cd/m²): темнее монитор не покажет
 
 
-def sample_luminance(cfg: DictConfig) -> DictConfig:
-    """Случайно выбирает L_outer и L_inner (темнее на фоне L_outer) в динамическом диапазоне дисплея."""
-    d = cfg.display
-    L_outer = float(np.exp(random.uniform(
-        np.log(d.min_brightness + 0.01), np.log(d.max_brightness)
-    )))
-    dL = random.uniform(0.01, 1.5) * L_outer
-    L_inner = float(np.clip(L_outer - dL, d.min_brightness, d.max_brightness))
-    return OmegaConf.merge(cfg, {"luminance": {"outer": L_outer, "inner": L_inner}})
+def signal_energy(cfg: DictConfig, L_outer: float, L_inner: float,
+                   phi_a: int, epsilon: float, slope: str) -> float:
+    """‖s‖ на локальном патче (объект + кольцо PHI_V) — та же область и тот же
+    рендер, что в is_visible_8_1, но без шума. Используется для подбора L_inner."""
+    pv = PHI_V
+    size = phi_a + 2 * pv
+    patch = np.full((size, size), L_outer, dtype=np.float32)
+    patch[pv:pv + phi_a, pv:pv + phi_a] = L_inner          # объект в центре патча
+    if epsilon > 0:
+        add_overshoots(patch, pv, pv, phi_a, pv, epsilon,
+                       abs(L_outer - L_inner), slope_form=slope)
+    canvas = luminance_map_to_canvas(patch, cfg)
+    field_p = float(cd_to_pixel(L_outer, cfg))
+    s = canvas.astype(np.float32) - field_p
+    return float(np.sqrt(np.sum(s * s)))
+
+
+def solve_L_inner(cfg: DictConfig, L_outer: float, target_energy: float,
+                   phi_a: int, epsilon: float, slope: str) -> float:
+    """Подбирает L_inner (темнее L_outer) бисекцией по ΔL так, чтобы ‖s‖ ≈ target.
+    Энергия монотонно растёт с ΔL, поэтому бисекция сходится."""
+    Lmin = float(cfg.display.min_brightness)
+    dL_max = float(L_outer) - Lmin
+    if dL_max <= 0:
+        return float(L_outer)
+    # если даже максимальный контраст не дотягивает до цели — берём максимум
+    if signal_energy(cfg, L_outer, Lmin, phi_a, epsilon, slope) <= target_energy:
+        return Lmin
+    lo, hi = 0.0, dL_max
+    for _ in range(25):
+        mid = 0.5 * (lo + hi)
+        e = signal_energy(cfg, L_outer, L_outer - mid, phi_a, epsilon, slope)
+        if e < target_energy:
+            lo = mid
+        else:
+            hi = mid
+    return float(np.clip(L_outer - 0.5 * (lo + hi), Lmin, L_outer))
 
 
 def make_lmap_8_1(cfg: DictConfig, phi_a: int, square: str):
@@ -111,6 +146,7 @@ def process_one(task: dict, out_dir: Path) -> dict:
         "epsilon": epsilon,
         "slope": slope,
         "phi_v": PHI_V,
+        "psi": task["psi"],
         "L_outer": round(float(cfg.luminance.outer), 2),
         "L_inner": round(float(cfg.luminance.inner), 2),
         "square": square,
@@ -122,21 +158,30 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
     random.seed(cfg.general.seed)
     tasks = []
     idx = 0
+    d = cfg.display
+    thr = float(cfg.visual.d_prime) * float(cfg.noise.sigma)   # порог энергии (ψ=1)
 
     for phi_a in PHI_A_VALUES:
         for epsilon in EPSILON_VALUES:
-            # Общая яркость для всех форм спада при данных (phi_a, epsilon),
-            # чтобы сравнение форм не путалось со случайным разбросом яркостей.
-            sample_cfg = sample_luminance(cfg)
             # При epsilon=0 форма спада роли не играет -- берём только одну
             slopes = SLOPE_FORMS if epsilon > 0 else [SLOPE_FORMS[0]]
             for slope in slopes:
                 for _ in range(SAMPLES_PER_COMBO):
+                    # целевое ψ лог-равномерно вокруг порога → полный спектр + ~50/50
+                    psi = float(np.exp(random.uniform(np.log(PSI_MIN), np.log(PSI_MAX))))
+                    # яркость фона — для разнообразия адаптации; не темнее L_OUTER_MIN,
+                    # иначе разницу на экране не разглядеть (тёмный край не отображается)
+                    L_outer = float(np.exp(random.uniform(
+                        np.log(L_OUTER_MIN), np.log(d.max_brightness))))
+                    L_inner = solve_L_inner(cfg, L_outer, psi * thr, phi_a, epsilon, slope)
+                    sample_cfg = OmegaConf.merge(
+                        cfg, {"luminance": {"outer": L_outer, "inner": L_inner}})
                     tasks.append({
                         "cfg": sample_cfg,
                         "phi_a": phi_a,
                         "epsilon": epsilon,
                         "slope": slope,
+                        "psi": round(psi, 3),
                         "seed": cfg.general.seed + idx,
                         "idx": idx,
                     })
@@ -155,7 +200,7 @@ def main(cfg: DictConfig):
         for task in tqdm(tasks)
     )
 
-    fieldnames = ["filename", "phi_a", "epsilon", "slope", "phi_v",
+    fieldnames = ["filename", "phi_a", "epsilon", "slope", "phi_v", "psi",
                   "L_outer", "L_inner", "square", "visible"]
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

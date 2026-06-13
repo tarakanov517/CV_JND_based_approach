@@ -24,7 +24,7 @@ luminance:
   inner: 2.3
 
 visual:
-  d_prime: 2.5 # критерий обнаружения (порог сигнал/шум идеального наблюдателя, примерно 2-3)
+  d_prime: 5.0 # критерий обнаружения; поднят с 2.5 под человеческую эффективность
 
 noise:
   sigma: 25 # std in pixels, applies after render
@@ -34,8 +34,8 @@ train:
   simkin_csv_path: "output/labels_8_1.csv"
   train_size: 0.8
   num_workers: 12
-  batch_size_class: 7
-  batch_size_penalty: 3
+  batch_size_class: 64
+  batch_size_penalty: 16
   lambda_simkin: 0.4
   lr: 1e-3
   model_name: "ResNetSIM"
