@@ -22,16 +22,19 @@ class CustomResNet(nn.Module):
         self.class_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.class_head = nn.Linear(2048, num_classes)
         
-        # Simkin Head
-        self.simkin_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.simkin_head = nn.Linear(256, 1)
-        
+        # Simkin Head: avg + max пулинг, чтобы локальный пик возмущения сохранялся
+        self.simkin_avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.simkin_maxpool = nn.AdaptiveMaxPool2d((1, 1))
+        self.simkin_head = nn.Linear(512, 1)   # 256 (avg) + 256 (max)
+
     def forward(self, x, mode='clas'):
         x = self.stem(x)
         x = self.layer1(x)
-        
+
         if mode == 'simk':
-            x = self.simkin_pool(x).flatten(1)
+            avg = self.simkin_avgpool(x).flatten(1)
+            mx = self.simkin_maxpool(x).flatten(1)
+            x = torch.cat([avg, mx], dim=1)
             return self.simkin_head(x)
         
         

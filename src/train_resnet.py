@@ -32,7 +32,7 @@ test_transform = transforms.Compose([
 ])
 
 
-def train_one_epoch(model, stl_loader, simkin_iter, optimizer,
+def train_one_epoch(model, stl_loader, simkin_loader, optimizer,
                     cls_criterion, simkin_criterion, lambda_simkin, device):
     model.train()
 
@@ -40,9 +40,15 @@ def train_one_epoch(model, stl_loader, simkin_iter, optimizer,
     total_simkin_loss = 0.0
     correct = 0
     total = 0
+    simkin_seen = 0
 
-    for stl_imgs, stl_labels in tqdm(stl_loader, desc="train", leave=False):
-        simkin_imgs, simkin_labels = next(simkin_iter)
+    n_steps = max(len(stl_loader), len(simkin_loader))
+    stl_it = iter(stl_loader) if len(stl_loader) >= n_steps else cycle(stl_loader)
+    simkin_it = iter(simkin_loader) if len(simkin_loader) >= n_steps else cycle(simkin_loader)
+
+    for _ in tqdm(range(n_steps), desc="train", leave=False):
+        stl_imgs, stl_labels = next(stl_it)
+        simkin_imgs, simkin_labels = next(simkin_it)
 
         stl_imgs = stl_imgs.to(device)
         stl_labels = stl_labels.to(device)
@@ -65,11 +71,12 @@ def train_one_epoch(model, stl_loader, simkin_iter, optimizer,
 
         total_cls_loss += loss_cls.item() * stl_imgs.size(0)
         total_simkin_loss += loss_simkin.item() * simkin_imgs.size(0)
+        simkin_seen += simkin_imgs.size(0)
         preds = cls_logits.argmax(dim=1)
         correct += (preds == stl_labels).sum().item()
         total += stl_labels.size(0)
 
-    return total_cls_loss / total, total_simkin_loss / total, correct / total
+    return total_cls_loss / total, total_simkin_loss / simkin_seen, correct / total
 
 
 @torch.no_grad()
@@ -95,10 +102,34 @@ def evaluate(model, stl_loader, cls_criterion, device):
     return total_loss / total, correct / total
 
 
+@torch.no_grad()
+def evaluate_simkin(model, simkin_loader, simkin_criterion, device):
+    model.eval()
+
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    for imgs, labels in tqdm(simkin_loader, desc="eval-simkin", leave=False):
+        imgs = imgs.to(device)
+        labels = labels.to(device)
+
+        logits = model(imgs, mode='simk').squeeze(1)
+        loss = simkin_criterion(logits, labels)
+
+        total_loss += loss.item() * imgs.size(0)
+        preds = (torch.sigmoid(logits) > 0.5).float()
+        correct += (preds == labels).sum().item()
+        total += labels.size(0)
+
+    return total_loss / total, correct / total
+
+
 def train_model(
     train_stl_loader,
     test_stl_loader,
     train_simkin_loader,
+    test_simkin_loader,
     model_name,
     epochs=10,
     lr=1e-3,
@@ -114,8 +145,6 @@ def train_model(
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    simkin_iter = cycle(train_simkin_loader)
-
     best_acc = 0.0
     history = {"train_loss": [], "train_simkin_loss": [], "train_acc": [],
                "test_loss": [], "test_acc": []}
@@ -124,10 +153,12 @@ def train_model(
         print(f"\nEpoch {epoch}/{epochs}")
 
         train_loss, train_simkin_loss, train_acc = train_one_epoch(
-            model, train_stl_loader, simkin_iter,
+            model, train_stl_loader, train_simkin_loader,
             optimizer, cls_criterion, simkin_criterion, lambda_simkin, device
         )
         test_loss, test_acc = evaluate(model, test_stl_loader, cls_criterion, device)
+        simkin_test_loss, simkin_test_acc = evaluate_simkin(
+            model, test_simkin_loader, simkin_criterion, device)
         scheduler.step()
 
         history["train_loss"].append(train_loss)
@@ -138,6 +169,7 @@ def train_model(
 
         print(f"train cls_loss: {train_loss:.4f} | simkin_loss: {train_simkin_loss:.4f} | train acc: {train_acc:.4f}")
         print(f"test  loss: {test_loss:.4f} | test  acc: {test_acc:.4f}")
+        print(f"simkin test loss: {simkin_test_loss:.4f} | simkin test acc: {simkin_test_acc:.4f}")
 
         if test_acc > best_acc:
             best_acc = test_acc
@@ -148,6 +180,7 @@ def train_model(
 
 
 def main(cfg):
+    tcfg = cfg.train
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # STL-10
@@ -156,11 +189,12 @@ def main(cfg):
     test_rgb_stl  = STL10RGBDataset(dataset_stl["test"],  transform=test_transform)
 
     simkin_full = SimkinDataset(
-        data_dir=Path(cfg.simkin_data_dir),
-        csv_path=Path(cfg.simkin_csv_path),
+        data_dir=Path(tcfg.simkin_data_dir),
+        csv_path=Path(tcfg.simkin_csv_path),
+        stimulus_cfg=cfg.stimulus,
     )
 
-    n_train = int(len(simkin_full) * cfg.train_size)
+    n_train = int(len(simkin_full) * tcfg.train_size)
     n_test = len(simkin_full) - n_train
 
     train_simkin, test_simkin = random_split(
@@ -171,32 +205,38 @@ def main(cfg):
     pin = torch.cuda.is_available()
 
     train_stl_loader = DataLoader(
-        train_rgb_stl, batch_size=cfg.batch_size_class,
+        train_rgb_stl, batch_size=tcfg.batch_size_class,
         shuffle=True, drop_last=True,
-        num_workers=cfg.num_workers, pin_memory=pin
+        num_workers=tcfg.num_workers, pin_memory=pin
     )
     test_stl_loader = DataLoader(
-        test_rgb_stl, batch_size=cfg.batch_size_class,
+        test_rgb_stl, batch_size=tcfg.batch_size_class,
         shuffle=False, drop_last=False,
-        num_workers=cfg.num_workers, pin_memory=pin
+        num_workers=tcfg.num_workers, pin_memory=pin
     )
     train_simkin_loader = DataLoader(
-        train_simkin, batch_size=cfg.batch_size_penalty,
+        train_simkin, batch_size=tcfg.batch_size_penalty,
         shuffle=True, drop_last=True,
-        num_workers=cfg.num_workers, pin_memory=pin
+        num_workers=tcfg.num_workers, pin_memory=pin
+    )
+    test_simkin_loader = DataLoader(
+        test_simkin, batch_size=tcfg.batch_size_penalty,
+        shuffle=False, drop_last=False,
+        num_workers=tcfg.num_workers, pin_memory=pin
     )
 
     train_model(
         train_stl_loader, test_stl_loader, train_simkin_loader,
-        model_name=cfg.model_name,
-        epochs=cfg.epochs,
-        lr=cfg.lr,
-        weight_decay=cfg.weight_decay,
-        lambda_simkin=cfg.lambda_simkin,
+        test_simkin_loader,
+        model_name=tcfg.model_name,
+        epochs=tcfg.epochs,
+        lr=tcfg.lr,
+        weight_decay=tcfg.weight_decay,
+        lambda_simkin=tcfg.lambda_simkin,
         device=device,
     )
 
 
 if __name__ == "__main__":
     cfg = OmegaConf.load("params.yaml")
-    main(cfg.train)
+    main(cfg)
