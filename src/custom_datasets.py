@@ -6,6 +6,16 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+from src.stimulus import add_noise
+
+IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+MAX_PIXEL = 255.0
+
+def to_tensor(a):
+    t = torch.from_numpy(a).float().unsqueeze(0) / MAX_PIXEL  # [1,h,half]
+    t = t.repeat(3, 1, 1)                                     # [3,h,half]
+    return (t - IMAGENET_MEAN) / IMAGENET_STD                 # как у STL
 
 class STL10RGBDataset(Dataset):
     def __init__(self, hf_dataset, transform=None) -> None:
@@ -37,17 +47,15 @@ class SimkinDataset(Dataset):
     def __init__(self, data_dir: Path, csv_path: Path, stimulus_cfg, crop_margin: int = 20):
         data_dir = Path(data_dir)
         csv_path = Path(csv_path)
-
-        labels: dict[str, int] = {}
+        
+        self.samples = []   # (path, psi)
         with open(csv_path, newline="") as f:
             for row in csv.DictReader(f):
-                labels[row["filename"]] = int(row["visible"])
-
-        self.samples = [
-            (data_dir / fname, vis)
-            for fname, vis in labels.items()
-            if (data_dir / fname).exists()
-        ]
+                path = data_dir / row["filename"]
+                if not path.exists():
+                    continue
+                psi = float(row["psi"]) if row.get("psi") not in (None, "") else float("nan")
+                self.samples.append((path, psi))
 
         # Фиксированное окно, охватывающее оба поля + запас crop_margin.
         s = stimulus_cfg
@@ -59,16 +67,22 @@ class SimkinDataset(Dataset):
         self.x1 = min(x_right + s.outer_box_size + m, s.canvas_width)
         self.y0 = max(s.center_y - m, 0)
         self.y1 = min(s.center_y + s.outer_box_size + m, s.canvas_height)
+        self.stimulus_cfg = stimulus_cfg
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx: int):
-        path, visible = self.samples[idx]
+        path, psi = self.samples[idx]
         img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-        img = img[self.y0:self.y1, self.x0:self.x1]               # кроп окна с обоими полями
-        img = torch.from_numpy(img).float().unsqueeze(0) / 255.0  # [1,h,w]
-        img = img.repeat(3, 1, 1)                                 # [3,h,w]
-        label = torch.tensor(visible, dtype=torch.float32)
-        return img, label
-    
+        img = img[self.y0:self.y1, self.x0:self.x1]   # окно с обоими полями
+        img = add_noise(img, sigma=self.stimulus_cfg.sigma)
+
+        W = img.shape[1]
+        half = W // 2
+        left = img[:, :half]
+        right = img[:, W - half:]
+
+        # label = torch.tensor(visible, dtype=torch.float32)
+        psi = torch.tensor(psi, dtype=torch.float32)
+        return (to_tensor(left), to_tensor(right)), torch.log2(psi)

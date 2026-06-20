@@ -17,6 +17,7 @@ stimulus:
   margin: 60 # gap between the two fields
   diff: 32 # offset of inner box inside outer box
   center_y: 350
+  sigma: 25 # std in pixels, applies after render
 
 luminance:
   background: 0.2
@@ -34,10 +35,10 @@ train:
   simkin_csv_path: "output/labels_8_1.csv"
   train_size: 0.8
   num_workers: 12
-  batch_size_class: 64
+  batch_size_class: 32
   batch_size_penalty: 16
   lambda_simkin: 0.4
   lr: 1e-3
-  model_name: "ResNetSIM"
+  model_name: "ResNetSim"
   weight_decay: 1e-4
   epochs: 10

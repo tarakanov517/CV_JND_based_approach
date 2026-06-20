@@ -28,7 +28,7 @@ from tqdm import tqdm
 
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
-from src.stimulus import luminance_map_to_canvas, add_overshoots, add_noise
+from src.stimulus import luminance_map_to_canvas, add_overshoots
 from src.display import cd_to_pixel
 from src.common import make_dir
 from src.visibility_funcs import is_visible_8_1
@@ -41,17 +41,15 @@ SLOPE_FORMS = [                             # формы спада
 PHI_V = 8                                    # ширина выброса (пикс.), фиксирована
 SAMPLES_PER_COMBO = 5                        # проб на комбинацию параметров
 PSI_MIN, PSI_MAX = 0.2, 5.0                  # диапазон целевого сигнал/шум (порог = 1)
-L_OUTER_MIN = 3.0                            # нижняя граница яркости фона (cd/m²): темнее монитор не покажет
+L_OUTER_MIN = 3.0                            # нижняя граница яркости фона (cd/m²)
 
 
 def signal_energy(cfg: DictConfig, L_outer: float, L_inner: float,
                    phi_a: int, epsilon: float, slope: str) -> float:
-    """‖s‖ на локальном патче (объект + кольцо PHI_V) — та же область и тот же
-    рендер, что в is_visible_8_1, но без шума. Используется для подбора L_inner."""
     pv = PHI_V
     size = phi_a + 2 * pv
     patch = np.full((size, size), L_outer, dtype=np.float32)
-    patch[pv:pv + phi_a, pv:pv + phi_a] = L_inner          # объект в центре патча
+    patch[pv:pv + phi_a, pv:pv + phi_a] = L_inner
     if epsilon > 0:
         add_overshoots(patch, pv, pv, phi_a, pv, epsilon,
                        abs(L_outer - L_inner), slope_form=slope)
@@ -63,13 +61,10 @@ def signal_energy(cfg: DictConfig, L_outer: float, L_inner: float,
 
 def solve_L_inner(cfg: DictConfig, L_outer: float, target_energy: float,
                    phi_a: int, epsilon: float, slope: str) -> float:
-    """Подбирает L_inner (темнее L_outer) бисекцией по ΔL так, чтобы ‖s‖ ≈ target.
-    Энергия монотонно растёт с ΔL, поэтому бисекция сходится."""
     Lmin = float(cfg.display.min_brightness)
     dL_max = float(L_outer) - Lmin
     if dL_max <= 0:
         return float(L_outer)
-    # если даже максимальный контраст не дотягивает до цели — берём максимум
     if signal_energy(cfg, L_outer, Lmin, phi_a, epsilon, slope) <= target_energy:
         return Lmin
     lo, hi = 0.0, dL_max
@@ -134,11 +129,11 @@ def process_one(task: dict, out_dir: Path) -> dict:
                        slope_form=slope)
 
     canvas_clean = luminance_map_to_canvas(lmap, cfg)        # до шума — для детектора
-    canvas = add_noise(canvas_clean, sigma=cfg.noise.sigma)
+    # canvas = add_noise(canvas_clean, sigma=cfg.noise.sigma)
 
     label = f"phi{phi_a:02d}_eps{epsilon:02d}_{slope}"
     filename = f"{label}_{idx:04d}.png"
-    cv2.imwrite(str(out_dir / filename), cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR))
+    cv2.imwrite(str(out_dir / filename), cv2.cvtColor(canvas_clean, cv2.COLOR_GRAY2BGR))
 
     return {
         "filename": filename,
@@ -173,7 +168,7 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
                     # иначе разницу на экране не разглядеть (тёмный край не отображается)
                     L_outer = float(np.exp(random.uniform(
                         np.log(L_OUTER_MIN), np.log(d.max_brightness))))
-                    L_inner = solve_L_inner(cfg, L_outer, psi * thr, phi_a, epsilon, slope)
+                    L_inner = _solve_L_inner(cfg, L_outer, psi * thr, phi_a, epsilon, slope)
                     sample_cfg = OmegaConf.merge(
                         cfg, {"luminance": {"outer": L_outer, "inner": L_inner}})
                     tasks.append({
