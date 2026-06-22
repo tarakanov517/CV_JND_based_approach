@@ -168,7 +168,7 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
                     # иначе разницу на экране не разглядеть (тёмный край не отображается)
                     L_outer = float(np.exp(random.uniform(
                         np.log(L_OUTER_MIN), np.log(d.max_brightness))))
-                    L_inner = _solve_L_inner(cfg, L_outer, psi * thr, phi_a, epsilon, slope)
+                    L_inner = solve_L_inner(cfg, L_outer, psi * thr, phi_a, epsilon, slope)
                     sample_cfg = OmegaConf.merge(
                         cfg, {"luminance": {"outer": L_outer, "inner": L_inner}})
                     tasks.append({

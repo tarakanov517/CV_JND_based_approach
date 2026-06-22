@@ -27,9 +27,6 @@ luminance:
 visual:
   d_prime: 5.0 # критерий обнаружения; поднят с 2.5 под человеческую эффективность
 
-noise:
-  sigma: 25 # std in pixels, applies after render
-
 train:
   simkin_data_dir: "output/dataset_8_1"
   simkin_csv_path: "output/labels_8_1.csv"

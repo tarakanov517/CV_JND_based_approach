@@ -193,7 +193,7 @@ def train_model(
     history = {"train_loss": [], "train_simkin_loss": [], "train_acc": [],
                "test_loss": [], "test_acc": []}
 
-    for epoch in range(epochs + 1):
+    for epoch in range(1, epochs + 1):
         print(f"\nEpoch {epoch}/{epochs}")
 
         train_loss, train_simkin_loss, train_acc = train_one_epoch(
