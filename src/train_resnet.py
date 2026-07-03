@@ -107,21 +107,13 @@ def evaluate(model, stl_loader, cls_criterion, device):
 
 
 @torch.no_grad()
-def evaluate_simkin(model, simkin_loader, simkin_criterion, device):
-    np.random.seed(12345)
-    
+def evaluate_simkin(model, simkin_loader, simkin_criterion, device):    
     model.eval()
 
     total_loss = 0.0
     correct = 0
     total = 0
 
-    # Границы log2(ψ)
-    # edges = [-1.0, 0.0, 1.0]
-    # names = ["ψ<0.5", "0.5-1", "1-2", "ψ≥2"]
-    # bin_correct = [0, 0, 0, 0]
-    # bin_total = [0, 0, 0, 0]
-    
     all_pred, all_tgt = [], []
 
     for imgs, labels in tqdm(simkin_loader, desc="eval-simkin", leave=False):
@@ -139,28 +131,34 @@ def evaluate_simkin(model, simkin_loader, simkin_criterion, device):
         all_pred.append(logits.cpu())
         all_tgt.append(labels.cpu())
 
-        # # Распределяем, насколько хорошо научились предсказывать в каждом бине
-        # for c, lp in zip(hit.tolist(), labels.cpu().tolist()):
-        #     if lp != lp:
-        #         continue
-        #     b = sum(lp >= e for e in edges)
-        #     bin_total[b] += 1
-        #     bin_correct[b] += int(c)
-
-    # parts = [f"{n}: {bc/bt:.2f} (n={bt})"
-    #          for n, bc, bt in zip(names, bin_correct, bin_total) if bt]
-    # print("  simkin acc по ψ: " + " | ".join(parts))
-
-    # # Кусок про корелляцию, пытался понять есть ли смещение в предсказании
-    # preds = torch.cat(all_pred).numpy()
-    # tgts = torch.cat(all_tgt).numpy()
-    # m = ~np.isnan(tgts)
-    # preds, tgts = preds[m], tgts[m]
-    # pearson = float(np.corrcoef(preds, tgts)[0, 1])
-    # spearman = float(spearmanr(preds, tgts).correlation)
-    # print(f"  simkin corr: Pearson {pearson:.3f} | Spearman {spearman:.3f}")
+    # корреляция pred vs истинный log2(ψ) (считаю главной метрикой прогресса головы)
+    preds = torch.cat(all_pred).numpy()
+    tgts = torch.cat(all_tgt).numpy()
+    m = ~np.isnan(tgts)
+    preds, tgts = preds[m], tgts[m]
+    pearson = float(np.corrcoef(preds, tgts)[0, 1])
+    spearman = float(spearmanr(preds, tgts).correlation)
+    print(f"  simkin corr: Pearson {pearson:.3f} | Spearman {spearman:.3f}")
 
     return total_loss / total, correct / total
+
+
+def pretrain_simkin(model, simkin_loader, optimizer, criterion, device, epochs):
+    """ low-LR прогрев на синтетике, только simkin голова (stem+layer1+simkin_head)."""
+    model.train()
+    for ep in range(1, epochs + 1):
+        total, seen = 0.0, 0
+        for imgs, labels in tqdm(simkin_loader, desc=f"pretrain {ep}/{epochs}", leave=False):
+            imgs = tuple(t.to(device) for t in imgs)
+            labels = labels.to(device)
+            optimizer.zero_grad()
+            pred = model(imgs, mode='simk').squeeze(1)
+            loss = criterion(pred, labels)
+            loss.backward()
+            optimizer.step()
+            total += loss.item() * labels.size(0)
+            seen += labels.size(0)
+        print(f"pretrain {ep}/{epochs} | simkin_loss: {total / seen:.4f}")
 
 
 def train_model(
@@ -173,9 +171,13 @@ def train_model(
     lr=1e-3,
     weight_decay=1e-4,
     lambda_simkin=1.0,
+    pretrain_epochs=0,
+    pretrain_lr=1e-4,
+    freeze_frontend=False,
+    noise_sigma=0.0,
     device='cpu'
 ):
-    model = CustomResNet().to(device)
+    model = CustomResNet(noise_sigma=noise_sigma).to(device)
     make_dir("models", delete_if_exist=False)  
     
     # Для evalution модели
@@ -186,14 +188,35 @@ def train_model(
     cls_criterion = nn.CrossEntropyLoss()
     simkin_criterion = nn.MSELoss()
 
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    # фаза прогрева на Симкине stem + layer1 + simkin_head
+    if pretrain_epochs > 0:
+        pre_params = (list(model.stem.parameters())
+                      + list(model.layer1.parameters())
+                      + list(model.simkin_head.parameters()))
+        pre_opt = optim.AdamW(pre_params, lr=pretrain_lr, weight_decay=0.0)
+        pretrain_simkin(model, train_simkin_loader, pre_opt, simkin_criterion, device, pretrain_epochs)
+        print("=== после фазы прогрева (стартует фаза дообучения): simkin на тесте ===")
+        evaluate_simkin(model, test_simkin_loader, simkin_criterion, device)
+
+    # Заморозка перцептивного фронт-энда (conv stem+layer1) после прогрева
+    if freeze_frontend:
+        for mod in list(model.stem.modules()) + list(model.layer1.modules()):
+            if isinstance(mod, nn.Conv2d):
+                for p in mod.parameters():
+                    p.requires_grad = False
+        n_fr = sum(1 for p in model.parameters() if not p.requires_grad)
+        print(f"[freeze] conv stem+layer1 заморожены ({n_fr} тензоров без grad)")
+
+    optimizer = optim.AdamW(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=lr, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     best_acc = 0.0
     history = {"train_loss": [], "train_simkin_loss": [], "train_acc": [],
                "test_loss": [], "test_acc": []}
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(epochs + 1):
         print(f"\nEpoch {epoch}/{epochs}")
 
         train_loss, train_simkin_loss, train_acc = train_one_epoch(
@@ -281,6 +304,10 @@ def main(cfg):
         lr=tcfg.lr,
         weight_decay=tcfg.weight_decay,
         lambda_simkin=tcfg.lambda_simkin,
+        pretrain_epochs=tcfg.pretrain_epochs,
+        pretrain_lr=tcfg.pretrain_lr,
+        freeze_frontend=tcfg.freeze_frontend,
+        noise_sigma=tcfg.frontend_noise,
         device=device,
     )
 

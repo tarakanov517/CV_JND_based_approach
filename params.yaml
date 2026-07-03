@@ -25,7 +25,10 @@ luminance:
   inner: 2.3
 
 visual:
-  d_prime: 5.0 # критерий обнаружения; поднят с 2.5 под человеческую эффективность
+  d_prime: 5.0 # критерий обнаружения;
+
+noise:
+  sigma: 25 # std in pixels, applies after render
 
 train:
   simkin_data_dir: "output/dataset_8_1"
@@ -36,6 +39,10 @@ train:
   batch_size_penalty: 16
   lambda_simkin: 0.4
   lr: 1e-3
-  model_name: "ResNetSim"
+  model_name: "ResNetSIM_frozen_noisy"
   weight_decay: 1e-4
   epochs: 10
+  freeze_frontend: True
+  frontend_noise: 0.5
+  pretrain_epochs: 30
+  pretrain_lr: 1e-3

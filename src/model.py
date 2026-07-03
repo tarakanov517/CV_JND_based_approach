@@ -23,8 +23,10 @@ def convert_bn_to_dual(module):
             convert_bn_to_dual(child)
 
 class CustomResNet(nn.Module):
-    def __init__(self, num_classes=10) -> None:
+    def __init__(self, num_classes=10, noise_sigma=0.0) -> None:
         super().__init__()
+
+        self.noise_sigma = noise_sigma
         resnet = models.resnet50(pretrained=True)
         
         self.stem = nn.Sequential(
@@ -70,6 +72,10 @@ class CustomResNet(nn.Module):
         self.set_domain(mode)
         x = self.stem(x)
         x = self.layer1(x)
+        
+        if self.noise_sigma > 0:
+            x = x + torch.randn_like(x) * self.noise_sigma
+        
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
