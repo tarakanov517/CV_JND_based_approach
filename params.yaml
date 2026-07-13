@@ -1,5 +1,5 @@
 general:
-  output_folder: "output"
+  output_folder: "output_solo_exp"
   seed: 42
 
 display:
@@ -25,12 +25,12 @@ luminance:
   inner: 2.3
 
 visual:
-  d_prime: 5.0 # критерий обнаружения;
+  d_prime: 5.0 # критерий обнаружения; поднят с 2.5 под человеческую эффективность
 
 noise:
   sigma: 25 # std in pixels, applies after render
 
-train:
+train_siamese:
   simkin_data_dir: "output/dataset_8_1"
   simkin_csv_path: "output/labels_8_1.csv"
   train_size: 0.8
@@ -39,10 +39,29 @@ train:
   batch_size_penalty: 16
   lambda_simkin: 0.4
   lr: 1e-3
-  model_name: "ResNetSIM_frozen_noisy"
+  model_name: "ResNetSIM_shared"
   weight_decay: 1e-4
   epochs: 10
   freeze_frontend: True
   frontend_noise: 0.5
   pretrain_epochs: 30
   pretrain_lr: 1e-3
+  delta: 0.01
+
+train_tile:
+  tile_dir: "output_solo_exp/dataset_tile"
+  tile_csv: "output_solo_exp/labels_tile.csv"
+  no_pretrain: false
+  pretrain_epochs: 30
+  pretrain_lr: 0.001
+  soft_delta: 0.01
+  noise_sigma: 0.5
+  epochs: 10
+  lr: 0.001
+  batch_size: 128
+  num_workers: 8
+  eps_255: 2 # eps = eps_255 / 255
+  pgd_steps: 20
+  eot_k: 10
+  robust_batches: null # null -> весь тест; int -> первые N батчей
+  seed: 42
