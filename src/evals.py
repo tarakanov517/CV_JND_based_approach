@@ -27,7 +27,7 @@ def evaluate(
 
             if criterion is not None:
                 loss = criterion(output, target)
-                running_loss += loss.item()
+                running_loss += loss.item() * target.size(0)
 
             correct += prediction.eq(target).sum().item()
             total += target.size(0)
@@ -50,7 +50,7 @@ def evaluate(
     avg_loss = None
 
     if criterion is not None:
-        avg_loss = running_loss / len(data_loader)
+        avg_loss = running_loss / total
 
     if final:
         for class_index in range(10):

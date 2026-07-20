@@ -1,0 +1,707 @@
+Device: cuda
+Experiments: 22
+[1/22] Experiment: baseline
+epoch: 1, train loss: 1.4984828107833863, val_acc: 0.5654, val_loss: 1.2200778915405273
+epoch: 2, train loss: 1.111792996482849, val_acc: 0.6425, val_loss: 1.010172232055664
+epoch: 3, train loss: 0.9421325073623658, val_acc: 0.66, val_loss: 1.0095821054458618
+epoch: 4, train loss: 0.8576485933113098, val_acc: 0.7051, val_loss: 0.8399180561065673
+epoch: 5, train loss: 0.7772540434646606, val_acc: 0.7373, val_loss: 0.7701769337654114
+epoch: 6, train loss: 0.7205866704559326, val_acc: 0.7481, val_loss: 0.7295040356636048
+epoch: 7, train loss: 0.679222246131897, val_acc: 0.7357, val_loss: 0.754532051563263
+epoch: 8, train loss: 0.6471119626426697, val_acc: 0.7737, val_loss: 0.6720522975921631
+epoch: 9, train loss: 0.6150285810661316, val_acc: 0.7628, val_loss: 0.695799036026001
+epoch: 10, train loss: 0.5955597284317017, val_acc: 0.7831, val_loss: 0.6427118600845337
+epoch: 11, train loss: 0.5631836891555786, val_acc: 0.7884, val_loss: 0.6274516279220581
+epoch: 12, train loss: 0.5491939766693116, val_acc: 0.812, val_loss: 0.5439373294830322
+epoch: 13, train loss: 0.5265852264690399, val_acc: 0.8017, val_loss: 0.581335834980011
+epoch: 14, train loss: 0.5128151392745972, val_acc: 0.8008, val_loss: 0.5824510162353516
+epoch: 15, train loss: 0.49532191473007203, val_acc: 0.8075, val_loss: 0.5687237552642822
+epoch: 16, train loss: 0.4844569690322876, val_acc: 0.812, val_loss: 0.5463896457672119
+epoch: 17, train loss: 0.4688328104305267, val_acc: 0.8238, val_loss: 0.5126661049842834
+epoch: 18, train loss: 0.44837055978775026, val_acc: 0.8181, val_loss: 0.5308130603790283
+epoch: 19, train loss: 0.44319328490257265, val_acc: 0.8217, val_loss: 0.5166955575942993
+Accuracy class 0 = 90.6 %
+Accuracy class 1 = 94.0 %
+Accuracy class 2 = 70.0 %
+Accuracy class 3 = 74.5 %
+Accuracy class 4 = 89.1 %
+Accuracy class 5 = 75.5 %
+Accuracy class 6 = 85.2 %
+Accuracy class 7 = 78.5 %
+Accuracy class 8 = 82.5 %
+Accuracy class 9 = 88.1 %
+epoch: 20, train loss: 0.4335973495674133, val_acc: 0.828, val_loss: 0.511611229801178
+{'name': 'baseline', 'noise_type': 'baseline', 'noise_config': '{}', 'clean_loss': 0.511611229801178, 'clean_accuracy': 0.828, 'transfer_fgsm_accuracy': 0.0215, 'transfer_pgd_accuracy': 0.0, 'training_time_seconds': 120.27323770523071}
+[2/22] Experiment: lateral_0.01
+epoch: 1, train loss: 1.497292950592041, val_acc: 0.5828, val_loss: 1.1674126537322997
+epoch: 2, train loss: 1.1097155388641358, val_acc: 0.6364, val_loss: 1.0219877149581909
+epoch: 3, train loss: 0.9489177525520325, val_acc: 0.6617, val_loss: 0.9988062732696533
+epoch: 4, train loss: 0.8589369044685363, val_acc: 0.7068, val_loss: 0.8291244655609131
+epoch: 5, train loss: 0.7795096426200867, val_acc: 0.7531, val_loss: 0.7049812108039856
+epoch: 6, train loss: 0.7223997541046142, val_acc: 0.7469, val_loss: 0.7446859568595886
+epoch: 7, train loss: 0.6824869204330445, val_acc: 0.7601, val_loss: 0.6846716722488403
+epoch: 8, train loss: 0.6469035843276978, val_acc: 0.7556, val_loss: 0.7427739159584046
+epoch: 9, train loss: 0.615778029537201, val_acc: 0.7862, val_loss: 0.6119404770851136
+epoch: 10, train loss: 0.598189484615326, val_acc: 0.7694, val_loss: 0.6857885304450989
+epoch: 11, train loss: 0.570407124710083, val_acc: 0.7934, val_loss: 0.6057891578674316
+epoch: 12, train loss: 0.5514962744140625, val_acc: 0.8029, val_loss: 0.5830416709899903
+epoch: 13, train loss: 0.5242840872097015, val_acc: 0.799, val_loss: 0.5827939991950989
+epoch: 14, train loss: 0.507863547744751, val_acc: 0.7897, val_loss: 0.6247615654945373
+epoch: 15, train loss: 0.49643697122573854, val_acc: 0.8008, val_loss: 0.5963396764755249
+epoch: 16, train loss: 0.48842323274612426, val_acc: 0.8171, val_loss: 0.5289729986190795
+epoch: 17, train loss: 0.47416548309326173, val_acc: 0.8216, val_loss: 0.5196178565979004
+epoch: 18, train loss: 0.45249879261016845, val_acc: 0.8153, val_loss: 0.5570452847480774
+epoch: 19, train loss: 0.44720878281593324, val_acc: 0.8292, val_loss: 0.5001911853790283
+Accuracy class 0 = 87.2 %
+Accuracy class 1 = 94.5 %
+Accuracy class 2 = 71.6 %
+Accuracy class 3 = 75.8 %
+Accuracy class 4 = 87.4 %
+Accuracy class 5 = 75.2 %
+Accuracy class 6 = 82.8 %
+Accuracy class 7 = 80.9 %
+Accuracy class 8 = 87.1 %
+Accuracy class 9 = 90.6 %
+epoch: 20, train loss: 0.43509946508407593, val_acc: 0.8331, val_loss: 0.5027288941383362
+{'name': 'lateral_0.01', 'noise_type': 'lateral_inhibition', 'noise_config': '{"lateral_sigma": 0.01}', 'clean_loss': 0.5027288941383362, 'clean_accuracy': 0.8331, 'transfer_fgsm_accuracy': 0.0646, 'transfer_pgd_accuracy': 0.0003, 'training_time_seconds': 118.15053725242615}
+[3/22] Experiment: lateral_0.03
+epoch: 1, train loss: 1.5014461797332763, val_acc: 0.5639, val_loss: 1.2097738164901732
+epoch: 2, train loss: 1.1137968506240845, val_acc: 0.638, val_loss: 1.0241222356796265
+epoch: 3, train loss: 0.9480309772872925, val_acc: 0.6606, val_loss: 0.9912369842529297
+epoch: 4, train loss: 0.8641709295272827, val_acc: 0.6967, val_loss: 0.8590694586753845
+epoch: 5, train loss: 0.7834163757705689, val_acc: 0.7296, val_loss: 0.7787513583183289
+epoch: 6, train loss: 0.7254437203979492, val_acc: 0.7463, val_loss: 0.7313194996833802
+epoch: 7, train loss: 0.6835379906654357, val_acc: 0.746, val_loss: 0.7314856309890747
+epoch: 8, train loss: 0.6523078547286987, val_acc: 0.7602, val_loss: 0.6966144366264343
+epoch: 9, train loss: 0.6226974027824402, val_acc: 0.756, val_loss: 0.7055192603111267
+epoch: 10, train loss: 0.5980755952644348, val_acc: 0.7834, val_loss: 0.6404216126441955
+epoch: 11, train loss: 0.5716870495414734, val_acc: 0.8037, val_loss: 0.578822298336029
+epoch: 12, train loss: 0.5548178734970093, val_acc: 0.8105, val_loss: 0.5616770952224731
+epoch: 13, train loss: 0.5329457573604583, val_acc: 0.8074, val_loss: 0.5552092093467712
+epoch: 14, train loss: 0.5106100262546539, val_acc: 0.8127, val_loss: 0.5669664584159851
+epoch: 15, train loss: 0.49991227738380434, val_acc: 0.8011, val_loss: 0.6018947607040406
+epoch: 16, train loss: 0.48836203287124635, val_acc: 0.8099, val_loss: 0.5466512218475342
+epoch: 17, train loss: 0.47704870186805726, val_acc: 0.8116, val_loss: 0.5466913108825684
+epoch: 18, train loss: 0.45511120796203614, val_acc: 0.8016, val_loss: 0.5984791630744934
+epoch: 19, train loss: 0.446831910572052, val_acc: 0.823, val_loss: 0.5106829770088196
+Accuracy class 0 = 88.7 %
+Accuracy class 1 = 93.6 %
+Accuracy class 2 = 75.3 %
+Accuracy class 3 = 75.3 %
+Accuracy class 4 = 86.8 %
+Accuracy class 5 = 69.6 %
+Accuracy class 6 = 81.2 %
+Accuracy class 7 = 85.4 %
+Accuracy class 8 = 85.3 %
+Accuracy class 9 = 88.0 %
+epoch: 20, train loss: 0.43815441051483156, val_acc: 0.8292, val_loss: 0.5002012581825256
+{'name': 'lateral_0.03', 'noise_type': 'lateral_inhibition', 'noise_config': '{"lateral_sigma": 0.03}', 'clean_loss': 0.5002012581825256, 'clean_accuracy': 0.8292, 'transfer_fgsm_accuracy': 0.0681, 'transfer_pgd_accuracy': 0.0009, 'training_time_seconds': 118.71890258789062}
+[4/22] Experiment: lateral_0.05
+epoch: 1, train loss: 1.4997566498184205, val_acc: 0.5554, val_loss: 1.2453031349182129
+epoch: 2, train loss: 1.1109969702148437, val_acc: 0.6149, val_loss: 1.0899031988143921
+epoch: 3, train loss: 0.9427544137382508, val_acc: 0.6713, val_loss: 0.9749685474395752
+epoch: 4, train loss: 0.8611574968338013, val_acc: 0.6844, val_loss: 0.9061889797210694
+epoch: 5, train loss: 0.7793316983604431, val_acc: 0.734, val_loss: 0.7637905232429505
+epoch: 6, train loss: 0.7211608115005493, val_acc: 0.7522, val_loss: 0.7096739375114441
+epoch: 7, train loss: 0.6822593747901916, val_acc: 0.7515, val_loss: 0.7018478446006775
+epoch: 8, train loss: 0.6475564393615723, val_acc: 0.7606, val_loss: 0.6988312634468079
+epoch: 9, train loss: 0.6189115534591675, val_acc: 0.7712, val_loss: 0.6822197389602661
+epoch: 10, train loss: 0.598236186542511, val_acc: 0.7679, val_loss: 0.6920146174430847
+epoch: 11, train loss: 0.5684246253395081, val_acc: 0.7881, val_loss: 0.6229876855850219
+epoch: 12, train loss: 0.5482553009796143, val_acc: 0.8094, val_loss: 0.5629969321250915
+epoch: 13, train loss: 0.5309188499450683, val_acc: 0.7978, val_loss: 0.6139904488563538
+epoch: 14, train loss: 0.5082040224075317, val_acc: 0.8084, val_loss: 0.5505101531028748
+epoch: 15, train loss: 0.5000004914093018, val_acc: 0.7899, val_loss: 0.644886584854126
+epoch: 16, train loss: 0.4890729224395752, val_acc: 0.809, val_loss: 0.5580823040008545
+epoch: 17, train loss: 0.4764859835910797, val_acc: 0.8119, val_loss: 0.5433532930374145
+epoch: 18, train loss: 0.4562848653793335, val_acc: 0.8044, val_loss: 0.5740932022094727
+epoch: 19, train loss: 0.4505832551574707, val_acc: 0.8285, val_loss: 0.5170642709732056
+Accuracy class 0 = 89.8 %
+Accuracy class 1 = 95.0 %
+Accuracy class 2 = 78.3 %
+Accuracy class 3 = 73.2 %
+Accuracy class 4 = 85.2 %
+Accuracy class 5 = 63.6 %
+Accuracy class 6 = 80.4 %
+Accuracy class 7 = 82.1 %
+Accuracy class 8 = 82.3 %
+Accuracy class 9 = 90.6 %
+epoch: 20, train loss: 0.4365707423210144, val_acc: 0.8205, val_loss: 0.5382036629676819
+{'name': 'lateral_0.05', 'noise_type': 'lateral_inhibition', 'noise_config': '{"lateral_sigma": 0.05}', 'clean_loss': 0.5382036629676819, 'clean_accuracy': 0.8205, 'transfer_fgsm_accuracy': 0.0726, 'transfer_pgd_accuracy': 0.0008, 'training_time_seconds': 118.96142029762268}
+[5/22] Experiment: lateral_0.1
+epoch: 1, train loss: 1.507055634765625, val_acc: 0.5486, val_loss: 1.2638641775131225
+epoch: 2, train loss: 1.1205888858795165, val_acc: 0.5966, val_loss: 1.1681428731918335
+epoch: 3, train loss: 0.9547908615112305, val_acc: 0.6203, val_loss: 1.1476597694396973
+epoch: 4, train loss: 0.8685572097396851, val_acc: 0.676, val_loss: 0.9497746799468995
+epoch: 5, train loss: 0.7898815011596679, val_acc: 0.7344, val_loss: 0.7698490285873413
+epoch: 6, train loss: 0.7322745756340027, val_acc: 0.7464, val_loss: 0.7362722783088684
+epoch: 7, train loss: 0.6905454022026062, val_acc: 0.6917, val_loss: 0.9029794189453125
+epoch: 8, train loss: 0.659358363685608, val_acc: 0.7558, val_loss: 0.7145343831062317
+epoch: 9, train loss: 0.6249713007736206, val_acc: 0.7573, val_loss: 0.7143612500190735
+epoch: 10, train loss: 0.6044904153823852, val_acc: 0.7748, val_loss: 0.6729757114410401
+epoch: 11, train loss: 0.5745761322021484, val_acc: 0.7775, val_loss: 0.6625346133232116
+epoch: 12, train loss: 0.5604241680717468, val_acc: 0.796, val_loss: 0.6167595266342163
+epoch: 13, train loss: 0.5375884780025482, val_acc: 0.7713, val_loss: 0.6752357005119324
+epoch: 14, train loss: 0.5145660319709778, val_acc: 0.793, val_loss: 0.6027285984039307
+epoch: 15, train loss: 0.5049569423866272, val_acc: 0.7805, val_loss: 0.6759160135269165
+epoch: 16, train loss: 0.48942602516174316, val_acc: 0.7923, val_loss: 0.6365077576637268
+epoch: 17, train loss: 0.47916684470176696, val_acc: 0.8004, val_loss: 0.5988251358032226
+epoch: 18, train loss: 0.4572959941482544, val_acc: 0.7946, val_loss: 0.6187599746704101
+epoch: 19, train loss: 0.45289486011505126, val_acc: 0.8307, val_loss: 0.5051355812072754
+Accuracy class 0 = 90.1 %
+Accuracy class 1 = 94.9 %
+Accuracy class 2 = 75.9 %
+Accuracy class 3 = 67.3 %
+Accuracy class 4 = 90.8 %
+Accuracy class 5 = 72.3 %
+Accuracy class 6 = 84.2 %
+Accuracy class 7 = 81.2 %
+Accuracy class 8 = 78.6 %
+Accuracy class 9 = 86.1 %
+epoch: 20, train loss: 0.4356056391811371, val_acc: 0.8214, val_loss: 0.5420279890060424
+{'name': 'lateral_0.1', 'noise_type': 'lateral_inhibition', 'noise_config': '{"lateral_sigma": 0.1}', 'clean_loss': 0.5420279890060424, 'clean_accuracy': 0.8214, 'transfer_fgsm_accuracy': 0.0845, 'transfer_pgd_accuracy': 0.001, 'training_time_seconds': 118.56844902038574}
+[6/22] Experiment: contrast_prop_0.02_add_0.005
+epoch: 1, train loss: 1.4983367374038696, val_acc: 0.5507, val_loss: 1.245859979057312
+epoch: 2, train loss: 1.112993595123291, val_acc: 0.6075, val_loss: 1.1087407058715821
+epoch: 3, train loss: 0.9488444978523254, val_acc: 0.677, val_loss: 0.9677176626205445
+epoch: 4, train loss: 0.8628067942810058, val_acc: 0.7053, val_loss: 0.8449406188011169
+epoch: 5, train loss: 0.7808106328964234, val_acc: 0.7468, val_loss: 0.7296380489349366
+epoch: 6, train loss: 0.7242278190231323, val_acc: 0.7547, val_loss: 0.7097941093444824
+epoch: 7, train loss: 0.6822108559417724, val_acc: 0.7545, val_loss: 0.6956248003959655
+epoch: 8, train loss: 0.6512489072799683, val_acc: 0.7678, val_loss: 0.694933915901184
+epoch: 9, train loss: 0.6192771382522583, val_acc: 0.7862, val_loss: 0.6176349442481994
+epoch: 10, train loss: 0.5986702334213256, val_acc: 0.76, val_loss: 0.7192792780876159
+epoch: 11, train loss: 0.5731634322357178, val_acc: 0.8083, val_loss: 0.5670964855194092
+epoch: 12, train loss: 0.5492350887870788, val_acc: 0.8023, val_loss: 0.5741065937042237
+epoch: 13, train loss: 0.526616432504654, val_acc: 0.804, val_loss: 0.5630210547447204
+epoch: 14, train loss: 0.512942672586441, val_acc: 0.8054, val_loss: 0.5717196166038513
+epoch: 15, train loss: 0.49775711702346803, val_acc: 0.8118, val_loss: 0.5660642272949219
+epoch: 16, train loss: 0.48874269403457643, val_acc: 0.8171, val_loss: 0.5320528852462768
+epoch: 17, train loss: 0.476979331817627, val_acc: 0.8113, val_loss: 0.5413506064414978
+epoch: 18, train loss: 0.4510345283126831, val_acc: 0.808, val_loss: 0.582636561870575
+epoch: 19, train loss: 0.4459266590023041, val_acc: 0.8336, val_loss: 0.48939600219726564
+Accuracy class 0 = 89.1 %
+Accuracy class 1 = 95.6 %
+Accuracy class 2 = 70.2 %
+Accuracy class 3 = 74.9 %
+Accuracy class 4 = 87.9 %
+Accuracy class 5 = 69.9 %
+Accuracy class 6 = 87.3 %
+Accuracy class 7 = 81.1 %
+Accuracy class 8 = 83.3 %
+Accuracy class 9 = 90.7 %
+epoch: 20, train loss: 0.4353296050262451, val_acc: 0.83, val_loss: 0.5064256818771362
+{'name': 'contrast_prop_0.02_add_0.005', 'noise_type': 'contrast_adaptive', 'noise_config': '{"contrast_sigma_additive": 0.005, "contrast_sigma_proportional": 0.02}', 'clean_loss': 0.5064256818771362, 'clean_accuracy': 0.83, 'transfer_fgsm_accuracy': 0.0826, 'transfer_pgd_accuracy': 0.0011, 'training_time_seconds': 118.95685505867004}
+[7/22] Experiment: contrast_prop_0.05_add_0.01
+epoch: 1, train loss: 1.5004725034332276, val_acc: 0.5521, val_loss: 1.2385983388900756
+epoch: 2, train loss: 1.1089026063919067, val_acc: 0.6194, val_loss: 1.0933540878295898
+epoch: 3, train loss: 0.9418130848312378, val_acc: 0.6634, val_loss: 1.0128244089126588
+epoch: 4, train loss: 0.8553718480300904, val_acc: 0.7021, val_loss: 0.8492512369155883
+epoch: 5, train loss: 0.779980419921875, val_acc: 0.7338, val_loss: 0.7694712968826294
+epoch: 6, train loss: 0.7196286277008057, val_acc: 0.7488, val_loss: 0.7351355209350586
+epoch: 7, train loss: 0.6800154242515564, val_acc: 0.7403, val_loss: 0.7410125984191894
+epoch: 8, train loss: 0.6515845594406128, val_acc: 0.7662, val_loss: 0.712132585144043
+epoch: 9, train loss: 0.619460549659729, val_acc: 0.7587, val_loss: 0.6942384997367859
+epoch: 10, train loss: 0.597065984134674, val_acc: 0.7725, val_loss: 0.6781728828430176
+epoch: 11, train loss: 0.5686603937911987, val_acc: 0.7946, val_loss: 0.604852767944336
+epoch: 12, train loss: 0.5550097460746766, val_acc: 0.8043, val_loss: 0.5786127192497253
+epoch: 13, train loss: 0.5317213781166077, val_acc: 0.7882, val_loss: 0.6364527410507202
+epoch: 14, train loss: 0.5102280861091614, val_acc: 0.8127, val_loss: 0.5512701859474182
+epoch: 15, train loss: 0.4965971409511566, val_acc: 0.7988, val_loss: 0.6114330833435059
+epoch: 16, train loss: 0.49015964723587035, val_acc: 0.8164, val_loss: 0.5378290349006652
+epoch: 17, train loss: 0.4699979708003998, val_acc: 0.8131, val_loss: 0.5462552845954896
+epoch: 18, train loss: 0.4534361822891235, val_acc: 0.7874, val_loss: 0.642468798828125
+epoch: 19, train loss: 0.45112622151374815, val_acc: 0.8262, val_loss: 0.517876868724823
+Accuracy class 0 = 88.3 %
+Accuracy class 1 = 95.6 %
+Accuracy class 2 = 73.3 %
+Accuracy class 3 = 67.6 %
+Accuracy class 4 = 86.7 %
+Accuracy class 5 = 80.0 %
+Accuracy class 6 = 82.8 %
+Accuracy class 7 = 80.2 %
+Accuracy class 8 = 83.0 %
+Accuracy class 9 = 86.2 %
+epoch: 20, train loss: 0.43706946990013124, val_acc: 0.8237, val_loss: 0.5307632245063781
+{'name': 'contrast_prop_0.05_add_0.01', 'noise_type': 'contrast_adaptive', 'noise_config': '{"contrast_sigma_additive": 0.01, "contrast_sigma_proportional": 0.05}', 'clean_loss': 0.5307632245063781, 'clean_accuracy': 0.8237, 'transfer_fgsm_accuracy': 0.077, 'transfer_pgd_accuracy': 0.0009, 'training_time_seconds': 118.76806735992432}
+[8/22] Experiment: contrast_prop_0.1_add_0.01
+epoch: 1, train loss: 1.508636040840149, val_acc: 0.5697, val_loss: 1.1959168123245238
+epoch: 2, train loss: 1.122417013206482, val_acc: 0.6322, val_loss: 1.0404080047607422
+epoch: 3, train loss: 0.9507943029975892, val_acc: 0.6658, val_loss: 0.9630315029144287
+epoch: 4, train loss: 0.8625199361801148, val_acc: 0.698, val_loss: 0.8640946830749512
+epoch: 5, train loss: 0.7861362969970703, val_acc: 0.74, val_loss: 0.7495929538726807
+epoch: 6, train loss: 0.7242245539474488, val_acc: 0.7563, val_loss: 0.7069188538551331
+epoch: 7, train loss: 0.6837459506607055, val_acc: 0.7323, val_loss: 0.7611279396057129
+epoch: 8, train loss: 0.6528948888587952, val_acc: 0.7745, val_loss: 0.6713541848182678
+epoch: 9, train loss: 0.618848563117981, val_acc: 0.7784, val_loss: 0.6453359538078308
+epoch: 10, train loss: 0.5968393002510071, val_acc: 0.7821, val_loss: 0.6292921326637269
+epoch: 11, train loss: 0.574328136587143, val_acc: 0.7741, val_loss: 0.6769210896492004
+epoch: 12, train loss: 0.5573174941253662, val_acc: 0.8054, val_loss: 0.5783350542068482
+epoch: 13, train loss: 0.5342967036247254, val_acc: 0.7963, val_loss: 0.5919728608131408
+epoch: 14, train loss: 0.5137204943084717, val_acc: 0.7965, val_loss: 0.6038010172843933
+epoch: 15, train loss: 0.5007857645416259, val_acc: 0.8045, val_loss: 0.5812267496109009
+epoch: 16, train loss: 0.49297646406173706, val_acc: 0.8212, val_loss: 0.519406128501892
+epoch: 17, train loss: 0.4757364632606506, val_acc: 0.8172, val_loss: 0.5346798972129821
+epoch: 18, train loss: 0.458487822971344, val_acc: 0.8113, val_loss: 0.5545294800758361
+epoch: 19, train loss: 0.4540218019390106, val_acc: 0.8359, val_loss: 0.49157977018356325
+Accuracy class 0 = 91.2 %
+Accuracy class 1 = 95.9 %
+Accuracy class 2 = 73.1 %
+Accuracy class 3 = 68.4 %
+Accuracy class 4 = 89.4 %
+Accuracy class 5 = 73.7 %
+Accuracy class 6 = 85.4 %
+Accuracy class 7 = 83.4 %
+Accuracy class 8 = 83.0 %
+Accuracy class 9 = 81.9 %
+epoch: 20, train loss: 0.4369328395080566, val_acc: 0.8254, val_loss: 0.5244775844573974
+{'name': 'contrast_prop_0.1_add_0.01', 'noise_type': 'contrast_adaptive', 'noise_config': '{"contrast_sigma_additive": 0.01, "contrast_sigma_proportional": 0.1}', 'clean_loss': 0.5244775844573974, 'clean_accuracy': 0.8254, 'transfer_fgsm_accuracy': 0.0708, 'transfer_pgd_accuracy': 0.0011, 'training_time_seconds': 120.30093359947205}
+[9/22] Experiment: magno_0.05_parvo_0.025
+epoch: 1, train loss: 1.5013019595336914, val_acc: 0.5636, val_loss: 1.2230758377075195
+epoch: 2, train loss: 1.1147999641799926, val_acc: 0.6353, val_loss: 1.020309988975525
+epoch: 3, train loss: 0.9433385961914063, val_acc: 0.6745, val_loss: 0.9501834323883057
+epoch: 4, train loss: 0.8579947763252258, val_acc: 0.6929, val_loss: 0.8985373591423035
+epoch: 5, train loss: 0.7801556350326538, val_acc: 0.7372, val_loss: 0.7678930747985839
+epoch: 6, train loss: 0.7211186371994018, val_acc: 0.7539, val_loss: 0.7167858322143554
+epoch: 7, train loss: 0.6808902014541626, val_acc: 0.7473, val_loss: 0.712804902458191
+epoch: 8, train loss: 0.648991581363678, val_acc: 0.7636, val_loss: 0.6944994436264038
+epoch: 9, train loss: 0.6161122445487976, val_acc: 0.7637, val_loss: 0.671210269165039
+epoch: 10, train loss: 0.5993097477722168, val_acc: 0.7679, val_loss: 0.6862019371032715
+epoch: 11, train loss: 0.5674012748622894, val_acc: 0.7943, val_loss: 0.5989991763114929
+epoch: 12, train loss: 0.5524153422927857, val_acc: 0.8026, val_loss: 0.5641218997955322
+epoch: 13, train loss: 0.5295618366909027, val_acc: 0.7958, val_loss: 0.6063014547348022
+epoch: 14, train loss: 0.5113231372070313, val_acc: 0.8029, val_loss: 0.5621306251525879
+epoch: 15, train loss: 0.5027044754123687, val_acc: 0.8087, val_loss: 0.5747713368415832
+epoch: 16, train loss: 0.48800830490112307, val_acc: 0.8073, val_loss: 0.567114342880249
+epoch: 17, train loss: 0.4717885004520416, val_acc: 0.8062, val_loss: 0.5808748643875122
+epoch: 18, train loss: 0.4546503730392456, val_acc: 0.8173, val_loss: 0.539125444316864
+epoch: 19, train loss: 0.4472692088317871, val_acc: 0.8201, val_loss: 0.5262197525024414
+Accuracy class 0 = 87.3 %
+Accuracy class 1 = 93.2 %
+Accuracy class 2 = 72.6 %
+Accuracy class 3 = 76.4 %
+Accuracy class 4 = 88.1 %
+Accuracy class 5 = 66.6 %
+Accuracy class 6 = 85.8 %
+Accuracy class 7 = 83.8 %
+Accuracy class 8 = 82.2 %
+Accuracy class 9 = 90.9 %
+epoch: 20, train loss: 0.43773344495773314, val_acc: 0.8269, val_loss: 0.51422817029953
+{'name': 'magno_0.05_parvo_0.025', 'noise_type': 'magno_parvo', 'noise_config': '{"fano_magno": 1.5, "fano_parvo": 1.1, "ratio_magno": 0.1, "sigma_magno": 0.05, "sigma_parvo": 0.025}', 'clean_loss': 0.51422817029953, 'clean_accuracy': 0.8269, 'transfer_fgsm_accuracy': 0.0725, 'transfer_pgd_accuracy': 0.0007, 'training_time_seconds': 121.72467994689941}
+[10/22] Experiment: magno_0.1_parvo_0.05
+epoch: 1, train loss: 1.504507855796814, val_acc: 0.5531, val_loss: 1.256567084121704
+epoch: 2, train loss: 1.114190472984314, val_acc: 0.6595, val_loss: 0.9658425905227661
+epoch: 3, train loss: 0.939062609539032, val_acc: 0.6768, val_loss: 0.9485237777709961
+epoch: 4, train loss: 0.8587293574714661, val_acc: 0.7151, val_loss: 0.8089209847450256
+epoch: 5, train loss: 0.781774580116272, val_acc: 0.7406, val_loss: 0.769054370880127
+epoch: 6, train loss: 0.7200534451293945, val_acc: 0.7483, val_loss: 0.7380478066444397
+epoch: 7, train loss: 0.679818403301239, val_acc: 0.7504, val_loss: 0.7122817811965942
+epoch: 8, train loss: 0.6501133786201477, val_acc: 0.7742, val_loss: 0.6737607815742492
+epoch: 9, train loss: 0.6180986979866028, val_acc: 0.7651, val_loss: 0.6845115162849427
+epoch: 10, train loss: 0.5955365246009827, val_acc: 0.7751, val_loss: 0.6612465500831604
+epoch: 11, train loss: 0.5713849325180054, val_acc: 0.7905, val_loss: 0.6118685501098633
+epoch: 12, train loss: 0.5563579329299927, val_acc: 0.7766, val_loss: 0.6712283274650573
+epoch: 13, train loss: 0.5338133852386474, val_acc: 0.8017, val_loss: 0.578694260597229
+epoch: 14, train loss: 0.5118970184707642, val_acc: 0.7912, val_loss: 0.6173241787910462
+epoch: 15, train loss: 0.5023131799125672, val_acc: 0.8062, val_loss: 0.5885840065956116
+epoch: 16, train loss: 0.4931761849594116, val_acc: 0.8008, val_loss: 0.5922528831481934
+epoch: 17, train loss: 0.4750561940765381, val_acc: 0.8089, val_loss: 0.5670645488739013
+epoch: 18, train loss: 0.45871423793792726, val_acc: 0.8165, val_loss: 0.5517656784057617
+epoch: 19, train loss: 0.44818975534439087, val_acc: 0.8221, val_loss: 0.5191698788642883
+Accuracy class 0 = 88.3 %
+Accuracy class 1 = 93.2 %
+Accuracy class 2 = 80.5 %
+Accuracy class 3 = 66.7 %
+Accuracy class 4 = 89.2 %
+Accuracy class 5 = 68.2 %
+Accuracy class 6 = 88.4 %
+Accuracy class 7 = 78.7 %
+Accuracy class 8 = 81.2 %
+Accuracy class 9 = 86.4 %
+epoch: 20, train loss: 0.43775773921966554, val_acc: 0.8208, val_loss: 0.545470468044281
+{'name': 'magno_0.1_parvo_0.05', 'noise_type': 'magno_parvo', 'noise_config': '{"fano_magno": 1.5, "fano_parvo": 1.1, "ratio_magno": 0.1, "sigma_magno": 0.1, "sigma_parvo": 0.05}', 'clean_loss': 0.545470468044281, 'clean_accuracy': 0.8208, 'transfer_fgsm_accuracy': 0.0848, 'transfer_pgd_accuracy': 0.0012, 'training_time_seconds': 120.66452860832214}
+[11/22] Experiment: magno_0.15_parvo_0.075
+epoch: 1, train loss: 1.5046716408538818, val_acc: 0.5466, val_loss: 1.279008811378479
+epoch: 2, train loss: 1.1142056076812745, val_acc: 0.6414, val_loss: 1.0309150119781494
+epoch: 3, train loss: 0.9451176428031921, val_acc: 0.6646, val_loss: 1.0003212181091308
+epoch: 4, train loss: 0.8607984016227722, val_acc: 0.7052, val_loss: 0.8409719614982605
+epoch: 5, train loss: 0.7862735660552979, val_acc: 0.7381, val_loss: 0.7646156272888184
+epoch: 6, train loss: 0.7252696760559082, val_acc: 0.7409, val_loss: 0.7484485342025757
+epoch: 7, train loss: 0.6882705670928955, val_acc: 0.7297, val_loss: 0.782973242855072
+epoch: 8, train loss: 0.6539048299789428, val_acc: 0.7623, val_loss: 0.7097739113807678
+epoch: 9, train loss: 0.6232299690055847, val_acc: 0.7719, val_loss: 0.6703715446472168
+epoch: 10, train loss: 0.6002613549995423, val_acc: 0.7708, val_loss: 0.6781022490501404
+epoch: 11, train loss: 0.5780286717033386, val_acc: 0.7933, val_loss: 0.6084236060142517
+epoch: 12, train loss: 0.5598870510673523, val_acc: 0.7888, val_loss: 0.6299949110984803
+epoch: 13, train loss: 0.5378073697090149, val_acc: 0.8032, val_loss: 0.5711563073158265
+epoch: 14, train loss: 0.5173055136299133, val_acc: 0.7855, val_loss: 0.6348942122459411
+epoch: 15, train loss: 0.5077170223140717, val_acc: 0.7885, val_loss: 0.6383000801086426
+epoch: 16, train loss: 0.4969458237266541, val_acc: 0.8009, val_loss: 0.5906554631233215
+epoch: 17, train loss: 0.4809115663051605, val_acc: 0.793, val_loss: 0.6158326251029969
+epoch: 18, train loss: 0.46248383337020876, val_acc: 0.7957, val_loss: 0.6175065149307251
+epoch: 19, train loss: 0.4550241564369202, val_acc: 0.8159, val_loss: 0.5435307020187378
+Accuracy class 0 = 87.0 %
+Accuracy class 1 = 95.6 %
+Accuracy class 2 = 77.6 %
+Accuracy class 3 = 71.5 %
+Accuracy class 4 = 86.0 %
+Accuracy class 5 = 63.2 %
+Accuracy class 6 = 89.5 %
+Accuracy class 7 = 78.0 %
+Accuracy class 8 = 84.4 %
+Accuracy class 9 = 82.4 %
+epoch: 20, train loss: 0.4412048433685303, val_acc: 0.8152, val_loss: 0.551665932559967
+{'name': 'magno_0.15_parvo_0.075', 'noise_type': 'magno_parvo', 'noise_config': '{"fano_magno": 1.5, "fano_parvo": 1.1, "ratio_magno": 0.1, "sigma_magno": 0.15, "sigma_parvo": 0.075}', 'clean_loss': 0.551665932559967, 'clean_accuracy': 0.8152, 'transfer_fgsm_accuracy': 0.0947, 'transfer_pgd_accuracy': 0.0021, 'training_time_seconds': 120.67689418792725}
+[12/22] Experiment: pyramidal_0.01
+epoch: 1, train loss: 1.6836686879348755, val_acc: 0.5128, val_loss: 1.339778356552124
+epoch: 2, train loss: 1.2913330884552001, val_acc: 0.5657, val_loss: 1.196426933860779
+epoch: 3, train loss: 1.089135118598938, val_acc: 0.6469, val_loss: 1.021356623840332
+epoch: 4, train loss: 0.9963111016464233, val_acc: 0.6675, val_loss: 0.9198757388114929
+epoch: 5, train loss: 0.9154456323051453, val_acc: 0.6956, val_loss: 0.8515964667320252
+epoch: 6, train loss: 0.864673340473175, val_acc: 0.7173, val_loss: 0.8028560392379761
+epoch: 7, train loss: 0.8176191167831421, val_acc: 0.7158, val_loss: 0.7984938789367676
+epoch: 8, train loss: 0.7837350959968566, val_acc: 0.7393, val_loss: 0.7423018404006958
+epoch: 9, train loss: 0.7448157105636597, val_acc: 0.7271, val_loss: 0.7931104538917542
+epoch: 10, train loss: 0.7267206345748901, val_acc: 0.7255, val_loss: 0.7923911337852478
+epoch: 11, train loss: 0.690785727672577, val_acc: 0.7237, val_loss: 0.7958073534965515
+epoch: 12, train loss: 0.6723770468521119, val_acc: 0.7564, val_loss: 0.7053733862876892
+epoch: 13, train loss: 0.6506171405696869, val_acc: 0.7713, val_loss: 0.6611041064262391
+epoch: 14, train loss: 0.628406143283844, val_acc: 0.7861, val_loss: 0.6333081356048584
+epoch: 15, train loss: 0.6060020087242126, val_acc: 0.7825, val_loss: 0.6217542058944702
+epoch: 16, train loss: 0.5997260990333557, val_acc: 0.783, val_loss: 0.6248824604988098
+epoch: 17, train loss: 0.5850538488960266, val_acc: 0.8031, val_loss: 0.5724792808532715
+epoch: 18, train loss: 0.5626397571754456, val_acc: 0.8063, val_loss: 0.5605736967086792
+epoch: 19, train loss: 0.552446150522232, val_acc: 0.7773, val_loss: 0.6583452884674073
+Accuracy class 0 = 84.3 %
+Accuracy class 1 = 90.0 %
+Accuracy class 2 = 62.6 %
+Accuracy class 3 = 69.7 %
+Accuracy class 4 = 86.3 %
+Accuracy class 5 = 72.5 %
+Accuracy class 6 = 83.9 %
+Accuracy class 7 = 71.9 %
+Accuracy class 8 = 90.9 %
+Accuracy class 9 = 92.0 %
+epoch: 20, train loss: 0.5401760782051086, val_acc: 0.8041, val_loss: 0.571825925540924
+{'name': 'pyramidal_0.01', 'noise_type': 'pyramidal', 'noise_config': '{"pyramidal_enabled": true, "pyramidal_gain_decay": 0.1, "pyramidal_gamma": 1.0, "pyramidal_semisaturation": 1.0, "pyramidal_sigma": 0.01}', 'clean_loss': 0.571825925540924, 'clean_accuracy': 0.8041, 'transfer_fgsm_accuracy': 0.1652, 'transfer_pgd_accuracy': 0.0163, 'training_time_seconds': 120.00447058677673}
+[13/22] Experiment: pyramidal_0.03
+epoch: 1, train loss: 1.683760179977417, val_acc: 0.5031, val_loss: 1.3566902420043945
+epoch: 2, train loss: 1.289208108291626, val_acc: 0.5875, val_loss: 1.142673505783081
+epoch: 3, train loss: 1.0910866971588136, val_acc: 0.6702, val_loss: 0.9432830547332763
+epoch: 4, train loss: 0.99530638961792, val_acc: 0.6696, val_loss: 0.9169368717193603
+epoch: 5, train loss: 0.9184429648971557, val_acc: 0.6893, val_loss: 0.8646464552879334
+epoch: 6, train loss: 0.8640441931152344, val_acc: 0.717, val_loss: 0.7927734703063964
+epoch: 7, train loss: 0.8179190804100036, val_acc: 0.7223, val_loss: 0.7832253101348877
+epoch: 8, train loss: 0.7832607531547546, val_acc: 0.7324, val_loss: 0.7537553612709046
+epoch: 9, train loss: 0.7449278939819336, val_acc: 0.7275, val_loss: 0.7782710490226745
+epoch: 10, train loss: 0.7253177340698242, val_acc: 0.7459, val_loss: 0.7347317031860352
+epoch: 11, train loss: 0.6874361829948425, val_acc: 0.7147, val_loss: 0.85512208070755
+epoch: 12, train loss: 0.6748922756385803, val_acc: 0.7757, val_loss: 0.6534267902374268
+epoch: 13, train loss: 0.6520980106163025, val_acc: 0.7746, val_loss: 0.6418082307815551
+epoch: 14, train loss: 0.6262445218849182, val_acc: 0.7784, val_loss: 0.6563117119789124
+epoch: 15, train loss: 0.6058506152534485, val_acc: 0.7848, val_loss: 0.6189712327003479
+epoch: 16, train loss: 0.5955598828887939, val_acc: 0.787, val_loss: 0.5987161297798157
+epoch: 17, train loss: 0.5846601134872437, val_acc: 0.7815, val_loss: 0.6281951586723328
+epoch: 18, train loss: 0.5599421922683716, val_acc: 0.8039, val_loss: 0.5685299164772034
+epoch: 19, train loss: 0.5498497019195556, val_acc: 0.7584, val_loss: 0.7376787998199463
+Accuracy class 0 = 87.9 %
+Accuracy class 1 = 93.9 %
+Accuracy class 2 = 56.8 %
+Accuracy class 3 = 73.1 %
+Accuracy class 4 = 83.8 %
+Accuracy class 5 = 66.7 %
+Accuracy class 6 = 75.9 %
+Accuracy class 7 = 79.8 %
+Accuracy class 8 = 88.7 %
+Accuracy class 9 = 89.3 %
+epoch: 20, train loss: 0.5383681699371338, val_acc: 0.7959, val_loss: 0.6005447324752807
+{'name': 'pyramidal_0.03', 'noise_type': 'pyramidal', 'noise_config': '{"pyramidal_enabled": true, "pyramidal_gain_decay": 0.1, "pyramidal_gamma": 1.0, "pyramidal_semisaturation": 1.0, "pyramidal_sigma": 0.03}', 'clean_loss': 0.6005447324752807, 'clean_accuracy': 0.7959, 'transfer_fgsm_accuracy': 0.1563, 'transfer_pgd_accuracy': 0.0137, 'training_time_seconds': 127.2917959690094}
+[14/22] Experiment: pyramidal_0.05
+epoch: 1, train loss: 1.6835575754547119, val_acc: 0.5002, val_loss: 1.3678775274276733
+epoch: 2, train loss: 1.2843668828582764, val_acc: 0.5913, val_loss: 1.1435029430389405
+epoch: 3, train loss: 1.0853250499725342, val_acc: 0.6509, val_loss: 1.0075648881912231
+epoch: 4, train loss: 0.9934224166488648, val_acc: 0.6806, val_loss: 0.8934239197731018
+epoch: 5, train loss: 0.913291681175232, val_acc: 0.7108, val_loss: 0.8092972756385803
+epoch: 6, train loss: 0.8611977209663391, val_acc: 0.714, val_loss: 0.8064480987548828
+epoch: 7, train loss: 0.8156910245323181, val_acc: 0.7171, val_loss: 0.7995421045303345
+epoch: 8, train loss: 0.7817868843269348, val_acc: 0.725, val_loss: 0.7824992696762085
+epoch: 9, train loss: 0.7466446157646179, val_acc: 0.717, val_loss: 0.8171495292663574
+epoch: 10, train loss: 0.7263299629211426, val_acc: 0.7424, val_loss: 0.7430162228584289
+epoch: 11, train loss: 0.6890006189727783, val_acc: 0.7333, val_loss: 0.764125347995758
+epoch: 12, train loss: 0.6743505543136596, val_acc: 0.7707, val_loss: 0.6650865068435668
+epoch: 13, train loss: 0.6513739312362671, val_acc: 0.7632, val_loss: 0.6760563446998596
+epoch: 14, train loss: 0.6257907719039917, val_acc: 0.7611, val_loss: 0.7011910326004028
+epoch: 15, train loss: 0.606278857383728, val_acc: 0.7682, val_loss: 0.6701497078895569
+epoch: 16, train loss: 0.5996560195159912, val_acc: 0.7911, val_loss: 0.6040460927009582
+epoch: 17, train loss: 0.5873817934799195, val_acc: 0.7948, val_loss: 0.5947461525917053
+epoch: 18, train loss: 0.5632160914421082, val_acc: 0.8057, val_loss: 0.5521455024719238
+epoch: 19, train loss: 0.553608579044342, val_acc: 0.7783, val_loss: 0.6506050561904907
+Accuracy class 0 = 88.2 %
+Accuracy class 1 = 93.6 %
+Accuracy class 2 = 62.5 %
+Accuracy class 3 = 73.5 %
+Accuracy class 4 = 86.2 %
+Accuracy class 5 = 68.6 %
+Accuracy class 6 = 76.5 %
+Accuracy class 7 = 81.0 %
+Accuracy class 8 = 87.7 %
+Accuracy class 9 = 87.3 %
+epoch: 20, train loss: 0.5380886596298218, val_acc: 0.8051, val_loss: 0.5634614862442017
+{'name': 'pyramidal_0.05', 'noise_type': 'pyramidal', 'noise_config': '{"pyramidal_enabled": true, "pyramidal_gain_decay": 0.1, "pyramidal_gamma": 1.0, "pyramidal_semisaturation": 1.0, "pyramidal_sigma": 0.05}', 'clean_loss': 0.5634614862442017, 'clean_accuracy': 0.8051, 'transfer_fgsm_accuracy': 0.1502, 'transfer_pgd_accuracy': 0.0121, 'training_time_seconds': 118.09350347518921}
+[15/22] Experiment: axon_0.01
+epoch: 1, train loss: 1.4974174823760986, val_acc: 0.5675, val_loss: 1.195697442626953
+epoch: 2, train loss: 1.1087319215011597, val_acc: 0.6398, val_loss: 1.0292356803894043
+epoch: 3, train loss: 0.9455406117248535, val_acc: 0.6458, val_loss: 1.0762472110748291
+epoch: 4, train loss: 0.8612455067062378, val_acc: 0.6941, val_loss: 0.8678957007408142
+epoch: 5, train loss: 0.7847999387741089, val_acc: 0.7299, val_loss: 0.7760229307174683
+epoch: 6, train loss: 0.7265669120025635, val_acc: 0.7536, val_loss: 0.7144341616630554
+epoch: 7, train loss: 0.6886431350135803, val_acc: 0.7539, val_loss: 0.7014088467597961
+epoch: 8, train loss: 0.650813499584198, val_acc: 0.7563, val_loss: 0.7276161310195923
+epoch: 9, train loss: 0.6205274176979065, val_acc: 0.7716, val_loss: 0.6634100223541259
+epoch: 10, train loss: 0.6031602517318726, val_acc: 0.7744, val_loss: 0.6575970497131348
+epoch: 11, train loss: 0.5744758319854736, val_acc: 0.7889, val_loss: 0.6168999732017517
+epoch: 12, train loss: 0.554259948310852, val_acc: 0.8076, val_loss: 0.5559319631576538
+epoch: 13, train loss: 0.5331611755943299, val_acc: 0.7982, val_loss: 0.5822099014282227
+epoch: 14, train loss: 0.5113216305923461, val_acc: 0.8058, val_loss: 0.5534473860740662
+epoch: 15, train loss: 0.4990705052852631, val_acc: 0.8052, val_loss: 0.5798165100097656
+epoch: 16, train loss: 0.48880166976928713, val_acc: 0.804, val_loss: 0.5613537095069885
+epoch: 17, train loss: 0.47807233275413513, val_acc: 0.815, val_loss: 0.5392999998092651
+epoch: 18, train loss: 0.45515791526794436, val_acc: 0.7971, val_loss: 0.6136426905632019
+epoch: 19, train loss: 0.44748207456588746, val_acc: 0.8202, val_loss: 0.5399374147415161
+Accuracy class 0 = 84.8 %
+Accuracy class 1 = 94.7 %
+Accuracy class 2 = 77.5 %
+Accuracy class 3 = 74.0 %
+Accuracy class 4 = 91.5 %
+Accuracy class 5 = 68.0 %
+Accuracy class 6 = 83.0 %
+Accuracy class 7 = 80.1 %
+Accuracy class 8 = 83.7 %
+Accuracy class 9 = 87.0 %
+epoch: 20, train loss: 0.4353814066886902, val_acc: 0.8243, val_loss: 0.5161839142799377
+{'name': 'axon_0.01', 'noise_type': 'axon', 'noise_config': '{"axon_sigma": [0.01, 0.01, 0.01]}', 'clean_loss': 0.5161839142799377, 'clean_accuracy': 0.8243, 'transfer_fgsm_accuracy': 0.0679, 'transfer_pgd_accuracy': 0.0, 'training_time_seconds': 119.97800397872925}
+[16/22] Experiment: axon_0.03
+epoch: 1, train loss: 1.504190437965393, val_acc: 0.5324, val_loss: 1.2945313316345215
+epoch: 2, train loss: 1.1176029193115233, val_acc: 0.6341, val_loss: 1.0259798913955689
+epoch: 3, train loss: 0.9490020919799804, val_acc: 0.6686, val_loss: 0.9813204177856445
+epoch: 4, train loss: 0.8619657488822937, val_acc: 0.6918, val_loss: 0.8934645055770875
+epoch: 5, train loss: 0.7871767438125611, val_acc: 0.7456, val_loss: 0.7377090781211854
+epoch: 6, train loss: 0.7242734340667725, val_acc: 0.7484, val_loss: 0.7271944903373718
+epoch: 7, train loss: 0.6828976870727539, val_acc: 0.7385, val_loss: 0.7521521752357483
+epoch: 8, train loss: 0.6541196776008606, val_acc: 0.761, val_loss: 0.7091652571678162
+epoch: 9, train loss: 0.6207806669807434, val_acc: 0.7791, val_loss: 0.640833586883545
+epoch: 10, train loss: 0.6010421393203735, val_acc: 0.7894, val_loss: 0.6098971890449524
+epoch: 11, train loss: 0.5732602904319763, val_acc: 0.7907, val_loss: 0.617739106464386
+epoch: 12, train loss: 0.5539537614631653, val_acc: 0.8063, val_loss: 0.5670292100906372
+epoch: 13, train loss: 0.5381996127223968, val_acc: 0.778, val_loss: 0.6704825417518616
+epoch: 14, train loss: 0.5110993954849243, val_acc: 0.8068, val_loss: 0.5630465517044068
+epoch: 15, train loss: 0.500980227355957, val_acc: 0.801, val_loss: 0.6013772632598877
+epoch: 16, train loss: 0.49059193241119387, val_acc: 0.8193, val_loss: 0.5361274308204651
+epoch: 17, train loss: 0.47728186887741086, val_acc: 0.8112, val_loss: 0.55614363489151
+epoch: 18, train loss: 0.4596978546714783, val_acc: 0.8067, val_loss: 0.5659416582107544
+epoch: 19, train loss: 0.4536116316604614, val_acc: 0.8223, val_loss: 0.5267322875022888
+Accuracy class 0 = 84.5 %
+Accuracy class 1 = 92.4 %
+Accuracy class 2 = 74.5 %
+Accuracy class 3 = 75.1 %
+Accuracy class 4 = 89.0 %
+Accuracy class 5 = 67.3 %
+Accuracy class 6 = 84.1 %
+Accuracy class 7 = 80.2 %
+Accuracy class 8 = 87.9 %
+Accuracy class 9 = 91.8 %
+epoch: 20, train loss: 0.44209069953918456, val_acc: 0.8268, val_loss: 0.5138640595436096
+{'name': 'axon_0.03', 'noise_type': 'axon', 'noise_config': '{"axon_sigma": [0.03, 0.03, 0.03]}', 'clean_loss': 0.5138640595436096, 'clean_accuracy': 0.8268, 'transfer_fgsm_accuracy': 0.0898, 'transfer_pgd_accuracy': 0.0009, 'training_time_seconds': 121.8734712600708}
+[17/22] Experiment: axon_0.05
+epoch: 1, train loss: 1.5071415307617186, val_acc: 0.5616, val_loss: 1.2238036582946776
+epoch: 2, train loss: 1.112360171737671, val_acc: 0.6168, val_loss: 1.0820198385238649
+epoch: 3, train loss: 0.9441116458511353, val_acc: 0.6776, val_loss: 0.9507697500228882
+epoch: 4, train loss: 0.8601058569717407, val_acc: 0.7139, val_loss: 0.8298591156959534
+epoch: 5, train loss: 0.7830157838630676, val_acc: 0.7476, val_loss: 0.7335828665733337
+epoch: 6, train loss: 0.7244903442573547, val_acc: 0.7421, val_loss: 0.7595533256530762
+epoch: 7, train loss: 0.6837514717674256, val_acc: 0.7603, val_loss: 0.6865559186935425
+epoch: 8, train loss: 0.6568280456352233, val_acc: 0.7669, val_loss: 0.6973767071723938
+epoch: 9, train loss: 0.6215933032417298, val_acc: 0.7463, val_loss: 0.7587076928138733
+epoch: 10, train loss: 0.6041821460723877, val_acc: 0.7798, val_loss: 0.6530708198547364
+epoch: 11, train loss: 0.577185798034668, val_acc: 0.7996, val_loss: 0.5930874544143677
+epoch: 12, train loss: 0.556356151714325, val_acc: 0.8007, val_loss: 0.5941666345596314
+epoch: 13, train loss: 0.5369405873680114, val_acc: 0.8103, val_loss: 0.566772119808197
+epoch: 14, train loss: 0.5169594427108765, val_acc: 0.7794, val_loss: 0.6730791654586792
+epoch: 15, train loss: 0.5069091822052002, val_acc: 0.7977, val_loss: 0.6199948819160461
+epoch: 16, train loss: 0.49530972984313965, val_acc: 0.8246, val_loss: 0.5258573472976684
+epoch: 17, train loss: 0.4798965140914917, val_acc: 0.8002, val_loss: 0.5835456249237061
+epoch: 18, train loss: 0.4599584727096558, val_acc: 0.7873, val_loss: 0.6688422600746154
+epoch: 19, train loss: 0.45727120012283323, val_acc: 0.8309, val_loss: 0.5026523820877076
+Accuracy class 0 = 89.6 %
+Accuracy class 1 = 94.6 %
+Accuracy class 2 = 74.2 %
+Accuracy class 3 = 69.4 %
+Accuracy class 4 = 88.4 %
+Accuracy class 5 = 70.0 %
+Accuracy class 6 = 87.8 %
+Accuracy class 7 = 85.0 %
+Accuracy class 8 = 85.2 %
+Accuracy class 9 = 87.8 %
+epoch: 20, train loss: 0.4438071694564819, val_acc: 0.832, val_loss: 0.5181291382789612
+{'name': 'axon_0.05', 'noise_type': 'axon', 'noise_config': '{"axon_sigma": [0.05, 0.05, 0.05]}', 'clean_loss': 0.5181291382789612, 'clean_accuracy': 0.832, 'transfer_fgsm_accuracy': 0.0787, 'transfer_pgd_accuracy': 0.0012, 'training_time_seconds': 120.37134528160095}
+[18/22] Experiment: axon_0.1
+epoch: 1, train loss: 1.5255076797485352, val_acc: 0.5341, val_loss: 1.3317945320129394
+epoch: 2, train loss: 1.1360041625595092, val_acc: 0.6139, val_loss: 1.1218935354232789
+epoch: 3, train loss: 0.9623365733146667, val_acc: 0.6656, val_loss: 0.9811484783172607
+epoch: 4, train loss: 0.8783844916152954, val_acc: 0.689, val_loss: 0.936433222770691
+epoch: 5, train loss: 0.8025606601142883, val_acc: 0.7419, val_loss: 0.7559965456008911
+epoch: 6, train loss: 0.7449334394264221, val_acc: 0.7332, val_loss: 0.788299156665802
+epoch: 7, train loss: 0.6990594695281982, val_acc: 0.6883, val_loss: 0.9486043214797973
+epoch: 8, train loss: 0.67513966588974, val_acc: 0.7514, val_loss: 0.7388147645950317
+epoch: 9, train loss: 0.6375512927436828, val_acc: 0.7333, val_loss: 0.8197097051620483
+epoch: 10, train loss: 0.6191587468719483, val_acc: 0.7428, val_loss: 0.7908519339561463
+epoch: 11, train loss: 0.5939221710968018, val_acc: 0.7859, val_loss: 0.6455018102645874
+epoch: 12, train loss: 0.573840181274414, val_acc: 0.7544, val_loss: 0.7829029705047608
+epoch: 13, train loss: 0.5572592959403991, val_acc: 0.7823, val_loss: 0.6810961608886719
+epoch: 14, train loss: 0.534161275138855, val_acc: 0.7765, val_loss: 0.6871972279548645
+epoch: 15, train loss: 0.525152467880249, val_acc: 0.7948, val_loss: 0.6362816963195801
+epoch: 16, train loss: 0.5136494099998474, val_acc: 0.802, val_loss: 0.5997184966087341
+epoch: 17, train loss: 0.49683212192535403, val_acc: 0.7963, val_loss: 0.6230010799407959
+epoch: 18, train loss: 0.4809466031265259, val_acc: 0.7923, val_loss: 0.659016695690155
+epoch: 19, train loss: 0.476508620929718, val_acc: 0.8157, val_loss: 0.5645695121765136
+Accuracy class 0 = 94.0 %
+Accuracy class 1 = 96.5 %
+Accuracy class 2 = 79.0 %
+Accuracy class 3 = 67.2 %
+Accuracy class 4 = 77.0 %
+Accuracy class 5 = 66.2 %
+Accuracy class 6 = 76.1 %
+Accuracy class 7 = 83.8 %
+Accuracy class 8 = 74.9 %
+Accuracy class 9 = 75.7 %
+epoch: 20, train loss: 0.4639127036476135, val_acc: 0.7904, val_loss: 0.6504655765533447
+{'name': 'axon_0.1', 'noise_type': 'axon', 'noise_config': '{"axon_sigma": [0.1, 0.1, 0.1]}', 'clean_loss': 0.6504655765533447, 'clean_accuracy': 0.7904, 'transfer_fgsm_accuracy': 0.0791, 'transfer_pgd_accuracy': 0.0019, 'training_time_seconds': 121.59504270553589}
+[19/22] Experiment: dendrite_0.025_0.01_0.01
+epoch: 1, train loss: 1.5081771619415283, val_acc: 0.5641, val_loss: 1.1986116485595704
+epoch: 2, train loss: 1.1224039645004273, val_acc: 0.6523, val_loss: 0.9828327529907227
+epoch: 3, train loss: 0.9550534505081176, val_acc: 0.672, val_loss: 0.9392704397201538
+epoch: 4, train loss: 0.8680895841979981, val_acc: 0.7014, val_loss: 0.8511528373718261
+epoch: 5, train loss: 0.7979587375068664, val_acc: 0.7386, val_loss: 0.7559390215873718
+epoch: 6, train loss: 0.7350352398300171, val_acc: 0.7521, val_loss: 0.7041238432884216
+epoch: 7, train loss: 0.6972023236274719, val_acc: 0.7513, val_loss: 0.694022903251648
+epoch: 8, train loss: 0.6654916061782837, val_acc: 0.7646, val_loss: 0.6988746398925781
+epoch: 9, train loss: 0.6333118465614319, val_acc: 0.7724, val_loss: 0.6583853223800659
+epoch: 10, train loss: 0.6127315936279297, val_acc: 0.7856, val_loss: 0.6325929936408996
+epoch: 11, train loss: 0.5878355708312988, val_acc: 0.7786, val_loss: 0.6556397822380066
+epoch: 12, train loss: 0.5656979132652282, val_acc: 0.808, val_loss: 0.5593307025909424
+epoch: 13, train loss: 0.5490926781082154, val_acc: 0.7971, val_loss: 0.6055711610794068
+epoch: 14, train loss: 0.5249283557701111, val_acc: 0.8043, val_loss: 0.573146312713623
+epoch: 15, train loss: 0.5178271664428711, val_acc: 0.8055, val_loss: 0.5840745903968811
+epoch: 16, train loss: 0.5053535743522644, val_acc: 0.8129, val_loss: 0.5449133804321289
+epoch: 17, train loss: 0.4889065252685547, val_acc: 0.8033, val_loss: 0.5787148874282837
+epoch: 18, train loss: 0.4724780777359009, val_acc: 0.8114, val_loss: 0.5540523944854736
+epoch: 19, train loss: 0.46341682656288147, val_acc: 0.818, val_loss: 0.5416491088867188
+Accuracy class 0 = 87.8 %
+Accuracy class 1 = 95.7 %
+Accuracy class 2 = 75.8 %
+Accuracy class 3 = 77.2 %
+Accuracy class 4 = 80.6 %
+Accuracy class 5 = 71.8 %
+Accuracy class 6 = 82.1 %
+Accuracy class 7 = 80.1 %
+Accuracy class 8 = 81.7 %
+Accuracy class 9 = 89.1 %
+epoch: 20, train loss: 0.45422586917877195, val_acc: 0.8219, val_loss: 0.5276036759376526
+{'name': 'dendrite_0.025_0.01_0.01', 'noise_type': 'dendrite', 'noise_config': '{"dendrite_sigma": [0.025, 0.01, 0.01], "dendrite_theta": [0.5, 1.5, 1.5]}', 'clean_loss': 0.5276036759376526, 'clean_accuracy': 0.8219, 'transfer_fgsm_accuracy': 0.1072, 'transfer_pgd_accuracy': 0.0041, 'training_time_seconds': 121.44798016548157}
+[20/22] Experiment: dendrite_0.05_0.02_0.02
+epoch: 1, train loss: 1.5263981453704834, val_acc: 0.5431, val_loss: 1.2507812133789062
+epoch: 2, train loss: 1.1436982035446166, val_acc: 0.6457, val_loss: 1.007632261657715
+epoch: 3, train loss: 0.9812564750671386, val_acc: 0.6541, val_loss: 1.0352956077575683
+epoch: 4, train loss: 0.8958444777107238, val_acc: 0.6936, val_loss: 0.8806933769226074
+epoch: 5, train loss: 0.816396667804718, val_acc: 0.7377, val_loss: 0.7610096555709839
+epoch: 6, train loss: 0.7604960322570801, val_acc: 0.7545, val_loss: 0.7030560661315918
+epoch: 7, train loss: 0.7206298070907593, val_acc: 0.731, val_loss: 0.7588636924743652
+epoch: 8, train loss: 0.6914630441856384, val_acc: 0.7548, val_loss: 0.7266876117706299
+epoch: 9, train loss: 0.6576005608940124, val_acc: 0.7593, val_loss: 0.6940372609138489
+epoch: 10, train loss: 0.635759075717926, val_acc: 0.7571, val_loss: 0.7130773143768311
+epoch: 11, train loss: 0.6135547021865845, val_acc: 0.7819, val_loss: 0.6529844494819641
+epoch: 12, train loss: 0.5960391088485718, val_acc: 0.805, val_loss: 0.5660418696403503
+epoch: 13, train loss: 0.5761458864021302, val_acc: 0.7775, val_loss: 0.6574444639205933
+epoch: 14, train loss: 0.5560217644119263, val_acc: 0.7976, val_loss: 0.596577407836914
+epoch: 15, train loss: 0.5431446692657471, val_acc: 0.7927, val_loss: 0.6224804067611694
+epoch: 16, train loss: 0.5348175430870056, val_acc: 0.7887, val_loss: 0.6207805841445923
+epoch: 17, train loss: 0.5184224086666107, val_acc: 0.794, val_loss: 0.608779841709137
+epoch: 18, train loss: 0.5011463035964966, val_acc: 0.8051, val_loss: 0.5750479179382324
+epoch: 19, train loss: 0.4946574278831482, val_acc: 0.8051, val_loss: 0.5856655466079712
+Accuracy class 0 = 88.8 %
+Accuracy class 1 = 96.5 %
+Accuracy class 2 = 78.0 %
+Accuracy class 3 = 76.1 %
+Accuracy class 4 = 75.3 %
+Accuracy class 5 = 63.6 %
+Accuracy class 6 = 80.6 %
+Accuracy class 7 = 79.5 %
+Accuracy class 8 = 79.8 %
+Accuracy class 9 = 86.3 %
+epoch: 20, train loss: 0.483568738822937, val_acc: 0.8045, val_loss: 0.5821275647163391
+{'name': 'dendrite_0.05_0.02_0.02', 'noise_type': 'dendrite', 'noise_config': '{"dendrite_sigma": [0.05, 0.02, 0.02], "dendrite_theta": [0.5, 1.5, 1.5]}', 'clean_loss': 0.5821275647163391, 'clean_accuracy': 0.8045, 'transfer_fgsm_accuracy': 0.1749, 'transfer_pgd_accuracy': 0.0381, 'training_time_seconds': 119.80179071426392}
+[21/22] Experiment: dendrite_0.1_0.03_0.03
+epoch: 1, train loss: 1.5693200186538696, val_acc: 0.5118, val_loss: 1.339798310279846
+epoch: 2, train loss: 1.2062774991607665, val_acc: 0.5835, val_loss: 1.1831786596298217
+epoch: 3, train loss: 1.0438893004989624, val_acc: 0.6352, val_loss: 1.0346874656677245
+epoch: 4, train loss: 0.9548641492843628, val_acc: 0.6476, val_loss: 1.0292060718536378
+epoch: 5, train loss: 0.8798225188827514, val_acc: 0.6935, val_loss: 0.8859229348182678
+epoch: 6, train loss: 0.8276029038047791, val_acc: 0.7088, val_loss: 0.8305516661643982
+epoch: 7, train loss: 0.7871463883590698, val_acc: 0.6936, val_loss: 0.8851171875
+epoch: 8, train loss: 0.7582286939620971, val_acc: 0.7088, val_loss: 0.8682000923156739
+epoch: 9, train loss: 0.7233925011634826, val_acc: 0.7126, val_loss: 0.8482919542312622
+epoch: 10, train loss: 0.7037128368377685, val_acc: 0.7326, val_loss: 0.7827459341049194
+epoch: 11, train loss: 0.6827982105827332, val_acc: 0.7384, val_loss: 0.7720312236785889
+epoch: 12, train loss: 0.6629307538223267, val_acc: 0.7669, val_loss: 0.6869876915931702
+epoch: 13, train loss: 0.640775908164978, val_acc: 0.7215, val_loss: 0.855267963886261
+epoch: 14, train loss: 0.6246498349189759, val_acc: 0.7489, val_loss: 0.7368864681243896
+epoch: 15, train loss: 0.6048810119628907, val_acc: 0.7585, val_loss: 0.7272693621635437
+epoch: 16, train loss: 0.5988330982589721, val_acc: 0.766, val_loss: 0.6937909937858582
+epoch: 17, train loss: 0.5847422385025024, val_acc: 0.7483, val_loss: 0.731180609035492
+epoch: 18, train loss: 0.5697932431030274, val_acc: 0.7623, val_loss: 0.6960651791572571
+epoch: 19, train loss: 0.5620026358985901, val_acc: 0.7761, val_loss: 0.6645871808052063
+Accuracy class 0 = 89.6 %
+Accuracy class 1 = 94.0 %
+Accuracy class 2 = 77.6 %
+Accuracy class 3 = 75.2 %
+Accuracy class 4 = 48.8 %
+Accuracy class 5 = 71.3 %
+Accuracy class 6 = 62.2 %
+Accuracy class 7 = 78.3 %
+Accuracy class 8 = 79.7 %
+Accuracy class 9 = 81.9 %
+epoch: 20, train loss: 0.5485932308578492, val_acc: 0.7586, val_loss: 0.746574228477478
+{'name': 'dendrite_0.1_0.03_0.03', 'noise_type': 'dendrite', 'noise_config': '{"dendrite_sigma": [0.1, 0.03, 0.03], "dendrite_theta": [0.5, 1.5, 1.5]}', 'clean_loss': 0.746574228477478, 'clean_accuracy': 0.7586, 'transfer_fgsm_accuracy': 0.3521, 'transfer_pgd_accuracy': 0.2796, 'training_time_seconds': 118.96555924415588}
+[22/22] Experiment: combined_visual_system
+epoch: 1, train loss: 1.7199015933990478, val_acc: 0.4461, val_loss: 1.4887030563354493
+epoch: 2, train loss: 1.3426181982803345, val_acc: 0.5755, val_loss: 1.1934009815216065
+epoch: 3, train loss: 1.1475293301391603, val_acc: 0.5995, val_loss: 1.1389845630645752
+epoch: 4, train loss: 1.043865685005188, val_acc: 0.6311, val_loss: 1.0214546058654785
+epoch: 5, train loss: 0.9687602449035645, val_acc: 0.6838, val_loss: 0.9081708777427673
+epoch: 6, train loss: 0.9162722709846497, val_acc: 0.7043, val_loss: 0.840142046546936
+epoch: 7, train loss: 0.8721659469985962, val_acc: 0.6691, val_loss: 0.9416371049880982
+epoch: 8, train loss: 0.8393227679443359, val_acc: 0.6914, val_loss: 0.8784813014030457
+epoch: 9, train loss: 0.804680160484314, val_acc: 0.7073, val_loss: 0.8417846848487854
+epoch: 10, train loss: 0.785586216468811, val_acc: 0.695, val_loss: 0.9318286018371582
+epoch: 11, train loss: 0.7514844482040405, val_acc: 0.7165, val_loss: 0.7972420013427735
+epoch: 12, train loss: 0.7302425353622437, val_acc: 0.7429, val_loss: 0.7425850836753846
+epoch: 13, train loss: 0.7105542750930786, val_acc: 0.7094, val_loss: 0.8714401107788086
+epoch: 14, train loss: 0.6887888919448852, val_acc: 0.7316, val_loss: 0.7822256441116333
+epoch: 15, train loss: 0.6716494372558593, val_acc: 0.7507, val_loss: 0.7323269960403442
+epoch: 16, train loss: 0.6582312944412232, val_acc: 0.7619, val_loss: 0.6932974828720093
+epoch: 17, train loss: 0.6461586947250366, val_acc: 0.7734, val_loss: 0.6490519863128662
+epoch: 18, train loss: 0.622814534034729, val_acc: 0.7674, val_loss: 0.6785517540931701
+epoch: 19, train loss: 0.6162658777427673, val_acc: 0.7568, val_loss: 0.715649186038971
+Accuracy class 0 = 91.9 %
+Accuracy class 1 = 93.8 %
+Accuracy class 2 = 73.2 %
+Accuracy class 3 = 70.1 %
+Accuracy class 4 = 77.4 %
+Accuracy class 5 = 68.4 %
+Accuracy class 6 = 73.0 %
+Accuracy class 7 = 80.7 %
+Accuracy class 8 = 74.6 %
+Accuracy class 9 = 75.7 %
+epoch: 20, train loss: 0.6003273972129822, val_acc: 0.7788, val_loss: 0.6594920450210572
+{'name': 'combined_visual_system', 'noise_type': 'combined', 'noise_config': '{"axon_sigma": [0.03, 0.03, 0.03], "contrast_sigma_additive": 0.01, "contrast_sigma_proportional": 0.05, "dendrite_sigma": [0.05, 0.02, 0.02], "dendrite_theta": [0.5, 1.5, 1.5], "fano_magno": 1.5, "fano_parvo": 1.1, "lateral_sigma": 0.03, "pyramidal_enabled": true, "pyramidal_gain_decay": 0.1, "pyramidal_gamma": 1.0, "pyramidal_semisaturation": 1.0, "pyramidal_sigma": 0.03, "ratio_magno": 0.1, "sigma_magno": 0.1, "sigma_parvo": 0.05}', 'clean_loss': 0.6594920450210572, 'clean_accuracy': 0.7788, 'transfer_fgsm_accuracy': 0.2215, 'transfer_pgd_accuracy': 0.0723, 'training_time_seconds': 121.156564950943}
+Results: /home/arilmusaev/human/experiment_outputs_human_noise/results.csv

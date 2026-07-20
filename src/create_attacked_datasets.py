@@ -1,5 +1,6 @@
 from attacks import fgsm_attack, pgd_attack
 
+
 def create_adversarial_dataset(
     attack_name,
     model,
@@ -11,7 +12,6 @@ def create_adversarial_dataset(
     num_iter=None,
 ):
     adversarial_data = []
-
     attack_name = attack_name.lower()
 
     for inputs, labels in data_loader:
@@ -26,18 +26,11 @@ def create_adversarial_dataset(
                 criterion=criterion,
                 epsilon=epsilon,
             )
-
         elif attack_name == "pgd":
             if alpha is None:
-                raise ValueError(
-                    "Для PGD нужно передать alpha"
-                )
-
+                raise ValueError("PGD requires alpha")
             if num_iter is None:
-                raise ValueError(
-                    "Для PGD нужно передать num_iter"
-                )
-
+                raise ValueError("PGD requires num_iter")
             adversarial_inputs, labels = pgd_attack(
                 model=model,
                 inputs=inputs,
@@ -48,17 +41,11 @@ def create_adversarial_dataset(
                 num_iter=num_iter,
                 device=device,
             )
-
         else:
-            raise ValueError(
-                f"Неизвестная атака: {attack_name}"
-            )
+            raise ValueError(f"Unknown attack: {attack_name}")
 
         adversarial_data.append(
-            (
-                adversarial_inputs.detach().cpu(),
-                labels.detach().cpu(),
-            )
+            (adversarial_inputs.detach().cpu(), labels.detach().cpu())
         )
 
     return adversarial_data

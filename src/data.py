@@ -64,18 +64,20 @@ def create_loaders(
     train_loader = DataLoader(
         cifar10_train,
         batch_size=train_batch_size,
-        num_workers=8, #
-        pin_memory=True, #
+        num_workers=8,
+        pin_memory=True,
         shuffle=True,
         generator=g,
+        worker_init_fn=seed_worker,
     )
 
     test_loader = DataLoader(
         cifar10_test,
-        num_workers=8, #
-        pin_memory=True, #
+        num_workers=8,
+        pin_memory=True,
         batch_size=test_batch_size,
         shuffle=False,
+        worker_init_fn=seed_worker,
     )
 
     return train_loader, test_loader

@@ -1,4 +1,5 @@
 import csv
+import json
 import random
 import time
 from pathlib import Path
@@ -15,405 +16,314 @@ from train import train
 
 
 SEED = 42
-LR = 0.01
+LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 NUM_EPOCHS = 20
-
-ACTIVATION_SIGMA_GRID = [
-    0.0,
-    0.0025,
-    0.005,
-    0.01,
-    0.015,
-    0.02,
-    0.03,
-    0.04,
-    0.05,
-    0.07,
-    0.10,
-    0.15,
-]
-
-PARAMETER_OMEGA_GRID = [
-    0.0,
-    1e-5,
-    3e-5,
-    1e-4,
-    2e-4,
-    3e-4,
-    5e-4,
-    1e-3,
-    2e-3,
-    3e-3,
-    5e-3,
-    1e-2,
-]
-
-RUN_ACTIVATION_EXPERIMENTS = True
-RUN_PARAMETER_EXPERIMENTS = True
-
-OUTPUT_DIR = Path("experiment_outputs_gaussian_grid")
+LATERAL_SIGMAS = (0.01, 0.03, 0.05, 0.1)
+CONTRAST_LEVELS = ((0.02, 0.005), (0.05, 0.01), (0.1, 0.01))
+MAGNO_PARVO_LEVELS = ((0.05, 0.025), (0.1, 0.05), (0.15, 0.075))
+PYRAMIDAL_SIGMAS = (0.01, 0.03, 0.05)
+AXON_SIGMAS = (0.01, 0.03, 0.05, 0.1)
+DENDRITE_SIGMAS = (
+    (0.025, 0.01, 0.01),
+    (0.05, 0.02, 0.02),
+    (0.1, 0.03, 0.03),
+)
+DENDRITE_THETA = (0.5, 1.5, 1.5)
+OUTPUT_DIR = Path("experiment_outputs_human_noise")
 CHECKPOINT_DIR = OUTPUT_DIR / "checkpoints"
 RESULTS_CSV = OUTPUT_DIR / "results.csv"
-
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-
     if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def experiment(name, noise_type, config):
+    return {"name": name, "noise_type": noise_type, "noise_config": config}
 
 
 def build_experiments():
-    experiments = [
-        {
-            "name": "baseline",
-            "noise_type": "baseline",
-            "group": "none",
-            "value": 0.0,
-            "activation_sigmas": (0.0, 0.0, 0.0),
-            "parameter_omegas": (0.0, 0.0, 0.0),
-        }
-    ]
+    experiments = [experiment("baseline", "baseline", {})]
 
-    groups = (
-        ("early", 0),
-        ("late", 1),
-        ("classifier", 2),
+    for sigma in LATERAL_SIGMAS:
+        experiments.append(
+            experiment(
+                f"lateral_{sigma:g}",
+                "lateral_inhibition",
+                {"lateral_sigma": sigma},
+            )
+        )
+
+    for sigma_proportional, sigma_additive in CONTRAST_LEVELS:
+        experiments.append(
+            experiment(
+                f"contrast_prop_{sigma_proportional:g}_add_{sigma_additive:g}",
+                "contrast_adaptive",
+                {
+                    "contrast_sigma_proportional": sigma_proportional,
+                    "contrast_sigma_additive": sigma_additive,
+                },
+            )
+        )
+
+    for sigma_magno, sigma_parvo in MAGNO_PARVO_LEVELS:
+        experiments.append(
+            experiment(
+                f"magno_{sigma_magno:g}_parvo_{sigma_parvo:g}",
+                "magno_parvo",
+                {
+                    "ratio_magno": 0.1,
+                    "sigma_magno": sigma_magno,
+                    "fano_magno": 1.5,
+                    "sigma_parvo": sigma_parvo,
+                    "fano_parvo": 1.1,
+                },
+            )
+        )
+
+    for sigma in PYRAMIDAL_SIGMAS:
+        experiments.append(
+            experiment(
+                f"pyramidal_{sigma:g}",
+                "pyramidal",
+                {
+                    "pyramidal_enabled": True,
+                    "pyramidal_sigma": sigma,
+                    "pyramidal_gamma": 1.0,
+                    "pyramidal_semisaturation": 1.0,
+                    "pyramidal_gain_decay": 0.1,
+                },
+            )
+        )
+
+    for sigma in AXON_SIGMAS:
+        experiments.append(
+            experiment(
+                f"axon_{sigma:g}",
+                "axon",
+                {"axon_sigma": (sigma, sigma, sigma)},
+            )
+        )
+
+    for sigmas in DENDRITE_SIGMAS:
+        experiments.append(
+            experiment(
+                "dendrite_" + "_".join(f"{value:g}" for value in sigmas),
+                "dendrite",
+                {
+                    "dendrite_theta": DENDRITE_THETA,
+                    "dendrite_sigma": sigmas,
+                },
+            )
+        )
+
+    experiments.append(
+        experiment(
+            "combined_visual_system",
+            "combined",
+            {
+                "lateral_sigma": 0.03,
+                "contrast_sigma_proportional": 0.05,
+                "contrast_sigma_additive": 0.01,
+                "ratio_magno": 0.1,
+                "sigma_magno": 0.1,
+                "fano_magno": 1.5,
+                "sigma_parvo": 0.05,
+                "fano_parvo": 1.1,
+                "pyramidal_enabled": True,
+                "pyramidal_sigma": 0.03,
+                "pyramidal_gamma": 1.0,
+                "pyramidal_semisaturation": 1.0,
+                "pyramidal_gain_decay": 0.1,
+                "axon_sigma": (0.03, 0.03, 0.03),
+                "dendrite_theta": DENDRITE_THETA,
+                "dendrite_sigma": (0.05, 0.02, 0.02),
+            },
+        )
     )
-
-    if RUN_ACTIVATION_EXPERIMENTS:
-        for sigma in ACTIVATION_SIGMA_GRID:
-            if sigma == 0:
-                continue
-
-            for group_name, group_index in groups:
-                activation_sigmas = [0.0, 0.0, 0.0]
-                activation_sigmas[group_index] = sigma
-
-                experiments.append(
-                    {
-                        "name": (
-                            f"activation_"
-                            f"{group_name}_"
-                            f"{sigma:g}"
-                        ),
-                        "noise_type": "activation",
-                        "group": group_name,
-                        "value": sigma,
-                        "activation_sigmas": tuple(
-                            activation_sigmas
-                        ),
-                        "parameter_omegas": (
-                            0.0,
-                            0.0,
-                            0.0,
-                        ),
-                    }
-                )
-
-    if RUN_PARAMETER_EXPERIMENTS:
-        for omega in PARAMETER_OMEGA_GRID:
-            if omega == 0:
-                continue
-
-            for group_name, group_index in groups:
-                parameter_omegas = [0.0, 0.0, 0.0]
-                parameter_omegas[group_index] = omega
-
-                experiments.append(
-                    {
-                        "name": (
-                            f"parameter_"
-                            f"{group_name}_"
-                            f"{omega:g}"
-                        ),
-                        "noise_type": "parameter",
-                        "group": group_name,
-                        "value": omega,
-                        "activation_sigmas": (
-                            0.0,
-                            0.0,
-                            0.0,
-                        ),
-                        "parameter_omegas": tuple(
-                            parameter_omegas
-                        ),
-                    }
-                )
-
     return experiments
 
 
-def append_result(result):
-    file_exists = RESULTS_CSV.exists()
-
-    with RESULTS_CSV.open(
-        "a",
-        newline="",
-        encoding="utf-8",
-    ) as file:
-        writer = csv.DictWriter(
-            file,
-            fieldnames=list(result.keys()),
-        )
-
-        if not file_exists:
-            writer.writeheader()
-
-        writer.writerow(result)
-
-
-def get_completed_experiments():
+def read_completed():
     if not RESULTS_CSV.exists():
         return set()
+    with RESULTS_CSV.open("r", newline="", encoding="utf-8") as file:
+        return {row["name"] for row in csv.DictReader(file)}
 
-    with RESULTS_CSV.open(
-        "r",
-        newline="",
-        encoding="utf-8",
-    ) as file:
-        return {
-            row["name"]
-            for row in csv.DictReader(file)
-        }
+
+def save_result(result):
+    rows = []
+    if RESULTS_CSV.exists():
+        with RESULTS_CSV.open("r", newline="", encoding="utf-8") as file:
+            rows = list(csv.DictReader(file))
+    rows = [row for row in rows if row["name"] != result["name"]]
+    rows.append(result)
+    temporary_path = RESULTS_CSV.with_suffix(".tmp")
+    with temporary_path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=result.keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary_path.replace(RESULTS_CSV)
+
+
+def train_or_load(
+    current_experiment,
+    checkpoint_path,
+    train_loader,
+    test_loader,
+    criterion,
+    device,
+):
+    set_seed(SEED)
+    train_loader.generator.manual_seed(SEED)
+    model = Net(current_experiment["noise_config"]).to(device)
+
+    if checkpoint_path.exists():
+        print("Loading checkpoint", flush=True)
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=device,
+            weights_only=False,
+        )
+        if checkpoint.get("experiment") != current_experiment:
+            raise RuntimeError(f"Checkpoint configuration mismatch: {checkpoint_path}")
+        model.load_state_dict(checkpoint["model_state_dict"])
+        return model, checkpoint["training_time"], checkpoint.get("history", [])
+
+    optimizer = optim.SGD(
+        model.parameters(),
+        lr=LEARNING_RATE,
+        momentum=MOMENTUM,
+    )
+    started = time.time()
+    history = train(
+        net=model,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        optimizer=optimizer,
+        criterion=criterion,
+        device=device,
+        num_epochs=NUM_EPOCHS,
+    )
+    training_time = time.time() - started
+    torch.save(
+        {
+            "name": current_experiment["name"],
+            "experiment": current_experiment,
+            "model_state_dict": model.state_dict(),
+            "training_time": training_time,
+            "history": history,
+        },
+        checkpoint_path,
+    )
+    return model, training_time, history
+
+
+def make_result(
+    current_experiment,
+    clean,
+    fgsm_accuracy,
+    pgd_accuracy,
+    training_time,
+):
+    return {
+        "name": current_experiment["name"],
+        "noise_type": current_experiment["noise_type"],
+        "noise_config": json.dumps(
+            current_experiment["noise_config"],
+            ensure_ascii=False,
+            sort_keys=True,
+        ),
+        "clean_loss": clean[1],
+        "clean_accuracy": clean[0],
+        "transfer_fgsm_accuracy": fgsm_accuracy,
+        "transfer_pgd_accuracy": pgd_accuracy,
+        "training_time_seconds": training_time,
+    }
 
 
 def main():
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     set_seed(SEED)
-
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available()
-        else "cpu"
-    )
-
-    print(f"Device: {device}", flush=True)
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = nn.CrossEntropyLoss()
-
     train_loader, test_loader = create_loaders(
         train_batch_size=256,
         test_batch_size=512,
         seed=SEED,
     )
-
     experiments = build_experiments()
-    completed = get_completed_experiments()
-
-    print(
-        f"Количество экспериментов: {len(experiments)}",
-        flush=True,
-    )
+    completed = read_completed()
+    print(f"Device: {device}", flush=True)
+    print(f"Experiments: {len(experiments)}", flush=True)
 
     baseline_fgsm = None
     baseline_pgd = None
 
-    for experiment in experiments:
-        name = experiment["name"]
+    for index, current_experiment in enumerate(experiments, start=1):
+        name = current_experiment["name"]
+        if name != "baseline" and name in completed:
+            print(f"[{index}/{len(experiments)}] Skip: {name}", flush=True)
+            continue
 
-        activation_sigmas = experiment[
-            "activation_sigmas"
-        ]
-
-        parameter_omegas = experiment[
-            "parameter_omegas"
-        ]
-
-        checkpoint_path = (
-            CHECKPOINT_DIR / f"{name}.pt"
+        print(f"[{index}/{len(experiments)}] Experiment: {name}", flush=True)
+        model, training_time, _ = train_or_load(
+            current_experiment,
+            CHECKPOINT_DIR / f"{name}.pt",
+            train_loader,
+            test_loader,
+            criterion,
+            device,
         )
-
-        print("\n" + "=" * 80, flush=True)
-        print(f"Experiment: {name}", flush=True)
-        print(
-            f"Activation: {activation_sigmas}",
-            flush=True,
-        )
-        print(
-            f"Parameters: {parameter_omegas}",
-            flush=True,
-        )
-
-        model = Net(
-            activation_sigmas[0],
-            activation_sigmas[1],
-            activation_sigmas[2],
-        ).to(device)
-
-        if (
-            name in completed
-            and checkpoint_path.exists()
-        ):
-            print(
-                "Загрузка сохранённой модели",
-                flush=True,
-            )
-
-            checkpoint = torch.load(
-                checkpoint_path,
-                map_location=device,
-                weights_only=False,
-            )
-
-            model.load_state_dict(
-                checkpoint["model_state_dict"]
-            )
-
-            training_time = checkpoint[
-                "training_time"
-            ]
-
-        else:
-            optimizer = optim.SGD(
-                model.parameters(),
-                lr=LR,
-                momentum=MOMENTUM,
-            )
-
-            start_time = time.time()
-
-            train(
-                net=model,
-                train_loader=train_loader,
-                test_loader=test_loader,
-                optimizer=optimizer,
-                criterion=criterion,
-                device=device,
-                num_epochs=NUM_EPOCHS,
-                omega1=parameter_omegas[0],
-                omega2=parameter_omegas[1],
-                omega3=parameter_omegas[2],
-            )
-
-            training_time = (
-                time.time() - start_time
-            )
-
-            torch.save(
-                {
-                    "name": name,
-                    "experiment": experiment,
-                    "model_state_dict": (
-                        model.state_dict()
-                    ),
-                    "training_time": training_time,
-                },
-                checkpoint_path,
-            )
-
-        clean_accuracy, clean_loss = evaluate(
-            model=model,
-            data_loader=test_loader,
-            device=device,
-            criterion=criterion,
-        )
+        clean = evaluate(model, test_loader, device, criterion)
 
         if name == "baseline":
-            baseline_fgsm = (
-                create_adversarial_dataset(
-                    attack_name="fgsm",
-                    model=model,
-                    data_loader=test_loader,
-                    criterion=criterion,
-                    device=device,
-                    epsilon=(8 / 255) / 0.5,
-                )
+            baseline_fgsm = create_adversarial_dataset(
+                "fgsm",
+                model,
+                test_loader,
+                criterion,
+                device,
+                epsilon=(8 / 255) / 0.5,
+            )
+            baseline_pgd = create_adversarial_dataset(
+                "pgd",
+                model,
+                test_loader,
+                criterion,
+                device,
+                epsilon=(8 / 255) / 0.5,
+                alpha=(2 / 255) / 0.5,
+                num_iter=10,
             )
 
-            baseline_pgd = (
-                create_adversarial_dataset(
-                    attack_name="pgd",
-                    model=model,
-                    data_loader=test_loader,
-                    criterion=criterion,
-                    device=device,
-                    epsilon=(8 / 255) / 0.5,
-                    alpha=(2 / 255) / 0.5,
-                    num_iter=10,
-                )
-            )
+        if baseline_fgsm is None or baseline_pgd is None:
+            raise RuntimeError("Baseline adversarial datasets were not created")
 
-        if baseline_fgsm is None:
-            raise RuntimeError(
-                "FGSM-атака baseline не создана"
-            )
-
-        if baseline_pgd is None:
-            raise RuntimeError(
-                "PGD-атака baseline не создана"
-            )
-
-        fgsm_accuracy, _ = evaluate(
-            model=model,
-            data_loader=baseline_fgsm,
-            device=device,
+        fgsm_accuracy, _ = evaluate(model, baseline_fgsm, device)
+        pgd_accuracy, _ = evaluate(model, baseline_pgd, device)
+        result = make_result(
+            current_experiment,
+            clean,
+            fgsm_accuracy,
+            pgd_accuracy,
+            training_time,
         )
-
-        pgd_accuracy, _ = evaluate(
-            model=model,
-            data_loader=baseline_pgd,
-            device=device,
-        )
-
-        result = {
-            "name": name,
-            "noise_type": experiment["noise_type"],
-            "group": experiment["group"],
-            "value": experiment["value"],
-
-            "activation_sigma1": (
-                activation_sigmas[0]
-            ),
-            "activation_sigma2": (
-                activation_sigmas[1]
-            ),
-            "activation_sigma3": (
-                activation_sigmas[2]
-            ),
-
-            "parameter_omega1": (
-                parameter_omegas[0]
-            ),
-            "parameter_omega2": (
-                parameter_omegas[1]
-            ),
-            "parameter_omega3": (
-                parameter_omegas[2]
-            ),
-
-            "clean_loss": clean_loss,
-            "clean_accuracy": clean_accuracy,
-            "transfer_fgsm_accuracy": (
-                fgsm_accuracy
-            ),
-            "transfer_pgd_accuracy": (
-                pgd_accuracy
-            ),
-            "training_time_seconds": (
-                training_time
-            ),
-        }
-
-        if name not in completed:
-            append_result(result)
-            completed.add(name)
-
+        save_result(result)
+        completed.add(name)
         print(result, flush=True)
-
         del model
-
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    print("\nВсе эксперименты завершены")
-    print(f"Результаты: {RESULTS_CSV.resolve()}")
+    print(f"Results: {RESULTS_CSV.resolve()}", flush=True)
 
 
 if __name__ == "__main__":

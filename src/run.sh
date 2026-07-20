@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Task1
+#SBATCH --job-name=human-noises
 #SBATCH --gpus=1
 #SBATCH --partition=rocky
 #SBATCH --cpus-per-task=9
