@@ -62,6 +62,7 @@ train_tile:
   num_workers: 8
   eps_255: 2 # eps = eps_255 / 255
   pgd_steps: 20
-  eot_k: 10
+  eot_k: 20
   robust_batches: null # null -> весь тест; int -> первые N батчей
   seed: 42
+  tap: "conv1" # точка ветвления: conv1|stem|l1.0|l1.1|l1|l2|l3|l4 (мельче = ближе к V1)

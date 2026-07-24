@@ -33,8 +33,9 @@ class Norm01(nn.Module):
 _ARCHS = {"tile": TileResNet, "siamese": CustomResNet}
 
 
-def load_model(ckpt, noise_sigma, device, arch="tile"):
-    m = _ARCHS[arch](num_classes=10, noise_sigma=noise_sigma).to(device)
+def load_model(ckpt, noise_sigma, device, arch="tile", tap="l1"):
+    kw = {"tap": tap} if arch == "tile" else {}   # tap только у TileResNet
+    m = _ARCHS[arch](num_classes=10, noise_sigma=noise_sigma, **kw).to(device)
     m.load_state_dict(torch.load(ckpt, map_location=device))
     m.eval()
     return Norm01(m, device).to(device).eval()

@@ -33,7 +33,8 @@ test_tf = transforms.Compose([
 
 
 def pretrain_simkin(model, loader, epochs, lr, device):
-    params = (list(model.stem.parameters()) + list(model.layer1.parameters())
+    fe_ids = model.frontend_param_ids()                  # фронт-энд до tap включительно
+    params = ([p for p in model.parameters() if id(p) in fe_ids]
               + list(model.simkin_head.parameters()))
     opt = optim.AdamW(params, lr=lr, weight_decay=0.0)
     crit = nn.MSELoss()
@@ -53,8 +54,9 @@ def pretrain_simkin(model, loader, epochs, lr, device):
 
 
 def snapshot_frontend(model):
+    fe_ids = model.frontend_param_ids()
     return {n: p.detach().clone() for n, p in model.named_parameters()
-            if (n.startswith("stem") or n.startswith("layer1")) and p.dim() > 1}
+            if id(p) in fe_ids and p.dim() > 1}
 
 
 def clamp_frontend(model, w0, delta):
@@ -141,6 +143,7 @@ def run_training(
     save_path=None,
     name=None,
     seed=42,
+    tap="l1",
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -163,17 +166,17 @@ def run_training(
     te_loader = DataLoader(STL10RGBDataset(stl["test"], transform=test_tf),
                            batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    model = TileResNet(num_classes=10, noise_sigma=noise_sigma).to(device)
+    model = TileResNet(num_classes=10, noise_sigma=noise_sigma, tap=tap).to(device)
     if not no_pretrain:
         pretrain_simkin(model, tile_loader, pretrain_epochs, pretrain_lr, device)
 
     w0 = snapshot_frontend(model)
-    print(f"[soft-freeze] snapshot {len(w0)} conv-тензоров stem+layer1, δ={soft_delta}")
+    print(f"[soft-freeze] tap={tap}: snapshot {len(w0)} conv-тензоров фронт-энда, δ={soft_delta}")
 
     crit = nn.CrossEntropyLoss()
     opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     sched = optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
-    save_path = save_path or f"models/ResNetTile{'_noisy' if noise_sigma > 0 else ''}_best.pt"
+    save_path = save_path or f"models/ResNetTile{'_noisy' if noise_sigma > 0 else ''}_tap_conv1_best.pt"
 
     best = 0.0
     for ep in range(1, epochs + 1):
