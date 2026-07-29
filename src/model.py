@@ -1,67 +1,52 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
 
-def get_omega_for_parameter(name, omega1, omega2, omega3):
-    if name.startswith("block1"):
-        return omega1
-    elif name.startswith("block2"):
-        return omega2
-    else:
-        return omega3
-
-
 class GaussianActivationNoise(nn.Module):
-    def __init__(self, sigma, relative):
+    def __init__(self, sigma: float):
         super().__init__()
         self.sigma = sigma
-        self.relative = relative
 
     def forward(self, x):
         if not self.training or self.sigma == 0:
             return x
 
         noise = torch.randn_like(x)
-
-        if self.relative:
-            scale = x.detach().std()
-            return x + self.sigma * scale * noise
-        else:
-            return x + self.sigma * noise
+        scale = x.detach().std()
+        return x + self.sigma * scale * noise
 
 
 class Net(nn.Module):
-    def __init__(self, sigma1=0, sigma2=0, sigma3=0, relative=True):
+    def __init__(self, sigma1, sigma2, sigma3):
         super().__init__()
-        self.block1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            GaussianActivationNoise(sigma1, relative),
-            nn.Conv2d(32, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            GaussianActivationNoise(sigma1, relative),
-            nn.MaxPool2d(2),
+        self.block1 = nn.Sequential(  # 3x32x32
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),  # 32x32x32
+            nn.BatchNorm2d(32),  # 32x32x32
+            nn.ReLU(),  # 32x32x32
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),  # 32x32x32
+            nn.BatchNorm2d(32),  # 32x32x32
+            nn.ReLU(),  # 32x32x32
+            GaussianActivationNoise(sigma1),
+            nn.MaxPool2d(2),  # 32x16x16
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            GaussianActivationNoise(sigma2, relative),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            GaussianActivationNoise(sigma2, relative),
-            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),  # 64x16x16
+            nn.BatchNorm2d(64),  # 64x16x16
+            nn.ReLU(),  # 64x16x16
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),  # 64x16x16
+            nn.BatchNorm2d(64),  # 64x16x16
+            nn.ReLU(),  # 64x16x16
+            GaussianActivationNoise(sigma2),
+            nn.MaxPool2d(2),  # 64x8x8
         )
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(8 * 8 * 64, 256),
+            nn.Linear(64 * 8 * 8, 256),
             nn.ReLU(),
-            GaussianActivationNoise(sigma3, relative),
+            GaussianActivationNoise(sigma3),
             nn.Linear(256, 10),
         )
 

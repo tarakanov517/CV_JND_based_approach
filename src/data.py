@@ -1,13 +1,11 @@
-import random
-
-import numpy as np
 import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+import torch.nn as nn
 
 
-class CifarDataset(Dataset):
+class ImageDataset(Dataset):
     def __init__(self, data, transforms):
         self.data = data
         self.transforms = transforms
@@ -26,56 +24,21 @@ class CifarDataset(Dataset):
         return image, label
 
 
-def seed_worker(worker_id: int) -> None:
-    worker_seed = torch.initial_seed() % 2**32
-
-    random.seed(worker_seed)
-    np.random.seed(worker_seed)
-
-
 def create_loaders(
-    train_batch_size=32,
-    test_batch_size=32,
-    dataset_name="uoft-cs/cifar10",
-    seed=42,
+    dataset_name, train_batch_size, test_batch_size, transforms_train, transforms_test
 ):
-    transform_train = transforms.Compose(
-        [
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, padding=4),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]
-    )
-
-    transform_test = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
 
     dataset = load_dataset(dataset_name)
 
-    cifar10_train = CifarDataset(dataset["train"], transforms=transform_train)
-
-    cifar10_test = CifarDataset(dataset["test"], transforms=transform_test)
-
-    g = torch.Generator()
-    g.manual_seed(seed)
+    train_dataset = ImageDataset(dataset["train"], transforms=transforms_train)
+    test_dataset = ImageDataset(dataset["test"], transforms=transforms_test)
 
     train_loader = DataLoader(
-        cifar10_train,
-        batch_size=train_batch_size,
-        num_workers=8, #
-        pin_memory=True, #
-        shuffle=True,
-        generator=g,
+        train_dataset, batch_size=train_batch_size, num_workers=8, shuffle=True
     )
 
     test_loader = DataLoader(
-        cifar10_test,
-        num_workers=8, #
-        pin_memory=True, #
-        batch_size=test_batch_size,
-        shuffle=False,
+        test_dataset, batch_size=test_batch_size, num_workers=8, shuffle=False
     )
 
     return train_loader, test_loader
