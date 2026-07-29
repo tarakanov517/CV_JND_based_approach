@@ -1,52 +1,77 @@
-from evals import evaluate
+import torch
+
+
+def get_omega_for_parameter(name, omega1, omega2, omega3):
+    if name.startswith("block1"):
+        return omega1
+    elif name.startswith("block2"):
+        return omega2
+    else:
+        return omega3
 
 
 def train(
-    net,
-    train_loader,
-    test_loader,
+    model,
     optimizer,
     criterion,
+    train_loader,
     device,
-    num_epochs,
+    omega1,
+    omega2,
+    omega3,
 ):
-    history = []
+    running_loss = 0.0
+    mean_acc = 0.0
 
-    for epoch in range(1, num_epochs + 1):
-        net.train()
-        loss_sum = 0.0
-        sample_count = 0
+    model.train()
 
-        for data, target in train_loader:
-            data = data.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
-            optimizer.zero_grad(set_to_none=True)
-            output = net(data)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-            loss_sum += loss.item() * target.size(0)
-            sample_count += target.size(0)
+    for X_batch, y_true in train_loader:
+        X_batch = X_batch.to(device)
+        y_true = y_true.to(device)
 
-        train_loss = loss_sum / sample_count
-        val_acc, val_loss = evaluate(
-            model=net,
-            data_loader=test_loader,
-            device=device,
-            criterion=criterion,
-            final=epoch == num_epochs,
-        )
-        metrics = {
-            "epoch": epoch,
-            "train_loss": train_loss,
-            "validation_accuracy": val_acc,
-            "validation_loss": val_loss,
-        }
-        history.append(metrics)
-        print(
-            f"epoch: {epoch}, train loss: {train_loss}, "
-            f"val_acc: {val_acc}, val_loss: {val_loss}",
-            flush=True,
-        )
+        optimizer.zero_grad()
 
-    return history
+        perturbations = []
+
+        with torch.no_grad():
+            for name, param in model.named_parameters():
+                if not param.requires_grad:
+                    continue
+
+                omega = get_omega_for_parameter(
+                    name,
+                    omega1,
+                    omega2,
+                    omega3,
+                )
+
+                if omega <= 0:
+                    continue
+
+                scale = param.detach().std(unbiased=False)
+                noise = torch.randn_like(param)
+                perturbation = omega * scale * noise
+
+                param.add_(perturbation)
+                perturbations.append((param, perturbation))
+
+        out = model(X_batch)
+        loss = criterion(out, y_true)
+        loss.backward()
+
+        with torch.no_grad():
+            for param, perturbation in perturbations:
+                param.sub_(perturbation)
+
+        optimizer.step()
+
+        running_loss += loss.item()
+
+        y_pred = torch.argmax(out, dim=1)
+        accuracy = (y_pred == y_true).float().mean()
+        mean_acc += accuracy.item()
+
+    running_loss /= len(train_loader)
+    mean_acc /= len(train_loader)
+
+    return running_loss, mean_acc
