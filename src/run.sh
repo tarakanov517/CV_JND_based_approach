@@ -1,84 +1,103 @@
 #!/bin/bash
-#SBATCH --job-name=gaussian-grid
+#SBATCH --job-name=gaussian-curriculum
 #SBATCH --partition=rocky
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=9
-#SBATCH --time=0-04:30:00
-#SBATCH --output=slurm-%j.out
+#SBATCH --time=0-8:00:00
 #SBATCH --mail-user=arilmusaev@edu.hse.ru
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
 
-cd "$SLURM_SUBMIT_DIR"
+PROJECT_DIR="$SLURM_SUBMIT_DIR"
+RUN_DIR="$PROJECT_DIR/curriculum_40"
 
 module load Python/PyTorch_GPU_v2.4
 
-export PYTHONUNBUFFERED=1
-
-mkdir -p models
-mkdir -p data
-mkdir -p experiments
-
-if [[ -f experiments/results.csv ]]; then
-    echo "Ошибка: experiments/results.csv уже существует."
-    echo "Для нового полного расчёта перемести или удали старый файл."
-    exit 1
+if [[ -f "$HOME/venvs/gaussian/bin/activate" ]]; then
+    source "$HOME/venvs/gaussian/bin/activate"
 fi
 
-rm -f data/adv_data_fgsm.pt
-rm -f data/adv_data_pgd.pt
+export PYTHONUNBUFFERED=1
 
-EPOCHS=20
+python3 -c "import torch; import torchattacks"
+
+mkdir -p "$RUN_DIR/models"
+mkdir -p "$RUN_DIR/data"
+mkdir -p "$RUN_DIR/experiments"
+
+cd "$RUN_DIR"
+
+EPOCHS=40
 LEARNING_RATE=0.01
 MOMENTUM=0.9
-TRAIN_BATCH_SIZE=256
-TEST_BATCH_SIZE=512
+TRAIN_BATCH_SIZE=32
+TEST_BATCH_SIZE=32
 DATASET="uoft-cs/cifar10"
+WARMUP_EPOCHS=10
+RAMP_EPOCHS=20
+TOTAL_EXPERIMENTS=24
 
-ACTIVATION_SIGMAS=(
-    0.0025
-    0.005
-    0.01
-    0.015
-    0.02
-    0.03
-    0.04
-    0.05
-    0.07
-    0.1
-    0.15
+EXPERIMENTS=(
+    "activation_block1|0.15|0.0|0.0|0.0|0.0|0.0"
+    "activation_block2|0.0|0.15|0.0|0.0|0.0|0.0"
+    "activation_classifier|0.0|0.0|0.04|0.0|0.0|0.0"
+    "parameter_block1|0.0|0.0|0.0|0.002|0.0|0.0"
+    "parameter_block2|0.0|0.0|0.0|0.0|0.001|0.0"
+    "parameter_classifier|0.0|0.0|0.0|0.0|0.0|0.003"
+    "all_activation|0.15|0.15|0.04|0.0|0.0|0.0"
+    "all_parameter|0.0|0.0|0.0|0.002|0.001|0.003"
+    "block1_combined|0.15|0.0|0.0|0.002|0.0|0.0"
+    "block2_combined|0.0|0.15|0.0|0.0|0.001|0.0"
+    "classifier_combined|0.0|0.0|0.04|0.0|0.0|0.003"
+    "full_combined|0.15|0.15|0.04|0.002|0.001|0.003"
 )
 
-PARAMETER_OMEGAS=(
-    0.00001
-    0.00003
-    0.0001
-    0.0002
-    0.0003
-    0.0005
-    0.001
-    0.002
-    0.003
-    0.005
-    0.01
-)
+is_completed() {
+    local expected_name="$1"
+    local results_file="$RUN_DIR/experiments/results.csv"
+
+    if [[ ! -f "$results_file" ]]; then
+        return 1
+    fi
+
+    awk -F',' -v name="$expected_name" '
+        $1 == name { found = 1 }
+        END { exit(found ? 0 : 1) }
+    ' "$results_file"
+}
 
 run_experiment() {
-    local sigma1="$1"
-    local sigma2="$2"
-    local sigma3="$3"
-    local omega1="$4"
-    local omega2="$5"
-    local omega3="$6"
+    local label="$1"
+    local schedule="$2"
+    local sigma1="$3"
+    local sigma2="$4"
+    local sigma3="$5"
+    local omega1="$6"
+    local omega2="$7"
+    local omega3="$8"
+    local expected_name
+
+    if [[ "$schedule" == "fixed" ]]; then
+        expected_name="Model_${sigma1}_${sigma2}_${sigma3}_${omega1}_${omega2}_${omega3}"
+    else
+        expected_name="Model_${EPOCHS}_${schedule}_w${WARMUP_EPOCHS}_r${RAMP_EPOCHS}_${sigma1}_${sigma2}_${sigma3}_${omega1}_${omega2}_${omega3}"
+    fi
+
+    if is_completed "$expected_name"; then
+        echo "Пропуск завершённого эксперимента: $expected_name"
+        return
+    fi
 
     echo
     echo "============================================================"
-    echo "sigma1=$sigma1 sigma2=$sigma2 sigma3=$sigma3"
-    echo "omega1=$omega1 omega2=$omega2 omega3=$omega3"
+    echo "Experiment $CURRENT_EXPERIMENT/$TOTAL_EXPERIMENTS"
+    echo "label=$label schedule=$schedule"
+    echo "sigma=($sigma1, $sigma2, $sigma3)"
+    echo "omega=($omega1, $omega2, $omega3)"
     echo "============================================================"
 
-    srun python3 main.py \
+    srun python3 "$PROJECT_DIR/main.py" \
         --epochs "$EPOCHS" \
         --learning_rate "$LEARNING_RATE" \
         --momentum "$MOMENTUM" \
@@ -90,42 +109,34 @@ run_experiment() {
         --sigma3 "$sigma3" \
         --omega1 "$omega1" \
         --omega2 "$omega2" \
-        --omega3 "$omega3"
+        --omega3 "$omega3" \
+        --noise_schedule "$schedule" \
+        --warmup_epochs "$WARMUP_EPOCHS" \
+        --ramp_epochs "$RAMP_EPOCHS"
 }
 
-experiment_number=0
-total_experiments=66
+CURRENT_EXPERIMENT=0
 
-for sigma in "${ACTIVATION_SIGMAS[@]}"; do
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment "$sigma" 0 0 0 0 0
+for experiment in "${EXPERIMENTS[@]}"; do
+    IFS='|' read -r label sigma1 sigma2 sigma3 omega1 omega2 omega3 <<< "$experiment"
 
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment 0 "$sigma" 0 0 0 0
+    for schedule in fixed linear; do
+        CURRENT_EXPERIMENT=$((CURRENT_EXPERIMENT + 1))
 
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment 0 0 "$sigma" 0 0 0
-done
-
-for omega in "${PARAMETER_OMEGAS[@]}"; do
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment 0 0 0 "$omega" 0 0
-
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment 0 0 0 0 "$omega" 0
-
-    experiment_number=$((experiment_number + 1))
-    echo "Experiment $experiment_number/$total_experiments"
-    run_experiment 0 0 0 0 0 "$omega"
+        run_experiment \
+            "$label" \
+            "$schedule" \
+            "$sigma1" \
+            "$sigma2" \
+            "$sigma3" \
+            "$omega1" \
+            "$omega2" \
+            "$omega3"
+    done
 done
 
 echo
 echo "============================================================"
-echo "Все эксперименты завершены"
-echo "Результаты: $SLURM_SUBMIT_DIR/experiments/results.csv"
+echo "Все 24 эксперимента завершены"
+echo "Результаты: $RUN_DIR/experiments/results.csv"
 echo "============================================================"

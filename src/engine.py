@@ -27,6 +27,17 @@ def set_seed(seed):
     torch.use_deterministic_algorithms(True, warn_only=True)
 
 
+def get_noise_multiplier(epoch, noise_schedule, warmup_epochs, ramp_epochs):
+    if noise_schedule == "fixed":
+        return 1.0
+    else:
+        if epoch < warmup_epochs:
+            return 0.0
+        progress = (epoch - warmup_epochs + 1) / ramp_epochs
+
+        return min(progress, 1.0)
+
+
 def engine(
     dataset_name,
     lr,
@@ -41,6 +52,9 @@ def engine(
     omega1,
     omega2,
     omega3,
+    noise_schedule="fixed",
+    warmup_epochs=5,
+    ramp_epochs=10,
     seed=42,
 ):
 
@@ -198,23 +212,68 @@ def engine(
             )
 
     set_seed(seed)
-    model = Net(sigma1=sigma1, sigma2=sigma2, sigma3=sigma3)
+    
+    
+    model = Net(sigma1=sigma1, sigma2=sigma2, sigma3=sigma3).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
-    model.train()
-    model.to(device)
+
+    if noise_schedule == "fixed":
+        experiment_name = (
+            f"Model_{sigma1}_{sigma2}_{sigma3}_" f"{omega1}_{omega2}_{omega3}"
+        )
+    else:
+        experiment_name = (
+            f"Model_{num_epochs}_{noise_schedule}_"
+            f"w{warmup_epochs}_r{ramp_epochs}_"
+            f"{sigma1}_{sigma2}_{sigma3}_"
+            f"{omega1}_{omega2}_{omega3}"
+        )
+    model_path = f"./models/{experiment_name}.tar"
 
     eval_max_loss = float("inf")
 
     for epoch in range(num_epochs):
+
+        noise_multiplier = get_noise_multiplier(
+            epoch=epoch,
+            noise_schedule=noise_schedule,
+            warmup_epochs=warmup_epochs,
+            ramp_epochs=ramp_epochs,
+        )
+
+        current_sigma1 = sigma1 * noise_multiplier
+        current_sigma2 = sigma2 * noise_multiplier
+        current_sigma3 = sigma3 * noise_multiplier
+
+        current_omega1 = omega1 * noise_multiplier
+        current_omega2 = omega2 * noise_multiplier
+        current_omega3 = omega3 * noise_multiplier
+
+        model.set_activation_sigmas(
+            current_sigma1,
+            current_sigma2,
+            current_sigma3,
+        )
+
+        print(
+            f"epoch={epoch + 1}, "
+            f"noise_multiplier={noise_multiplier:.4f}, "
+            f"sigma=({current_sigma1:.6g}, "
+            f"{current_sigma2:.6g}, "
+            f"{current_sigma3:.6g}), "
+            f"omega=({current_omega1:.6g}, "
+            f"{current_omega2:.6g}, "
+            f"{current_omega3:.6g})"
+        )
         train_loss, train_accuracy = train(
             model=model,
             optimizer=optimizer,
             criterion=criterion,
             device=device,
             train_loader=train_loader,
-            omega1=omega1,
-            omega2=omega2,
-            omega3=omega3,
+            omega1=current_omega1,
+            omega2=current_omega2,
+            omega3=current_omega3,
         )
 
         val_loss, val_accuracy = eval(
@@ -226,15 +285,15 @@ def engine(
         print(f"{epoch+1}, train loss={train_loss}, train accuracy={train_accuracy}")
         print(f"test loss={val_loss}, test accuracy={val_accuracy}")
 
-        if val_loss < eval_max_loss:
+        full_noise_reached = noise_multiplier >= 1.0
+
+        checkpoint_allowed = noise_schedule == "fixed" or full_noise_reached
+
+        if checkpoint_allowed and val_loss < eval_max_loss:
             eval_max_loss = val_loss
-            torch.save(
-                model,
-                f"./models/model_{sigma1}_{sigma2}_{sigma3}_{omega1}_{omega2}_{omega3}.tar",
-            )
-    model_path = (
-        f"./models/model_{sigma1}_{sigma2}_{sigma3}_" f"{omega1}_{omega2}_{omega3}.tar"
-    )
+            torch.save(model, model_path)
+
+    model_path = model_path
 
     model = torch.load(
         model_path,
@@ -274,7 +333,7 @@ def engine(
         writer = csv.writer(file)
         writer.writerow(
             (
-                f"Model_{sigma1}_{sigma2}_{sigma3}_{omega1}_{omega2}_{omega3}",
+                experiment_name,
                 accuracy_model,
                 attacked_accuracy_fgsm,
                 attacked_accuracy_pgd,

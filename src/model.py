@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class GaussianActivationNoise(nn.Module):
@@ -49,6 +50,11 @@ class Net(nn.Module):
             GaussianActivationNoise(sigma3),
             nn.Linear(256, 10),
         )
+
+    def set_activation_sigmas(self, sigma1, sigma2, sigma3):
+        self.block1[6].sigma = float(sigma1)
+        self.block2[6].sigma = float(sigma2)
+        self.classifier[3].sigma = float(sigma3)
 
     def forward(self, x):
         x = self.block1(x)

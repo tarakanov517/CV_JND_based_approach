@@ -47,7 +47,6 @@ def train(
 
                 if omega <= 0:
                     continue
-
                 scale = param.detach().std(unbiased=False)
                 noise = torch.randn_like(param)
                 perturbation = omega * scale * noise

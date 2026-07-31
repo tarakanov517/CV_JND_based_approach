@@ -64,6 +64,24 @@ if __name__ == "__main__":
         "-o3", "--omega3", action="store", help="Omega для третьего блока", type=float
     )
 
+    parser.add_argument(
+        "--noise_schedule",
+        choices=("fixed", "linear"),
+        default="fixed",
+    )
+
+    parser.add_argument(
+        "--warmup_epochs",
+        type=int,
+        default=5,
+    )
+
+    parser.add_argument(
+        "--ramp_epochs",
+        type=int,
+        default=10,
+    )
+
     if torch.cuda.is_available():
         device = "cuda:0"
     else:
@@ -86,4 +104,7 @@ if __name__ == "__main__":
         omega1=args.omega1,
         omega2=args.omega2,
         omega3=args.omega3,
+        noise_schedule=args.noise_schedule,
+        warmup_epochs=args.warmup_epochs,
+        ramp_epochs=args.ramp_epochs,
     )
