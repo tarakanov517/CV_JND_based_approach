@@ -18,8 +18,8 @@ class TileResNet(nn.Module):
         self.tap = tap
         r = models.resnet50(weights="IMAGENET1K_V1")
 
-        self.stem = nn.Sequential(r.conv1, r.bn1, r.relu, r.maxpool)   # stem.0..3
-        self.layer1 = r.layer1                                         # layer1.0..2
+        self.stem = nn.Sequential(r.conv1, r.bn1, r.relu, r.maxpool)
+        self.layer1 = r.layer1 
         self.layer2, self.layer3, self.layer4 = r.layer2, r.layer3, r.layer4
 
         self._stages = [

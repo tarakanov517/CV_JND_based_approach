@@ -1,4 +1,3 @@
-from itertools import cycle
 from pathlib import Path
 
 import numpy as np
@@ -37,7 +36,7 @@ test_transform = transforms.Compose([
 
 
 def train_one_epoch(model, stl_loader, simkin_loader, optimizer,
-                    cls_criterion, simkin_criterion, lambda_simkin, device):
+                    cls_criterion, simkin_criterion, lambda_simkin, delta, frontend_convs, initial_weights, device):
     model.train()
 
     total_cls_loss = 0.0
@@ -46,9 +45,14 @@ def train_one_epoch(model, stl_loader, simkin_loader, optimizer,
     total = 0
     simkin_seen = 0
 
+    def _endless(loader):                 # бесконечный поток: пересоздаёт итератор, чтобы свежий шум был
+        while True:
+            for batch in loader:
+                yield batch
+
     n_steps = max(len(stl_loader), len(simkin_loader))
-    stl_it = iter(stl_loader) if len(stl_loader) >= n_steps else cycle(stl_loader)
-    simkin_it = iter(simkin_loader) if len(simkin_loader) >= n_steps else cycle(simkin_loader)
+    stl_it = _endless(stl_loader)
+    simkin_it = _endless(simkin_loader)
 
     for _ in tqdm(range(n_steps), desc="train", leave=False):
         stl_imgs, stl_labels = next(stl_it)
@@ -72,6 +76,12 @@ def train_one_epoch(model, stl_loader, simkin_loader, optimizer,
         loss = loss_cls + lambda_simkin * loss_simkin
         loss.backward()
         optimizer.step()
+        
+        if delta > 0:
+            with torch.no_grad():
+                for name, mod in frontend_convs:
+                    w0 = initial_weights[name]
+                    mod.weight.data.clamp_(w0 - delta, w0 + delta)
 
         total_cls_loss += loss_cls.item() * stl_imgs.size(0)
         total_simkin_loss += loss_simkin.item() * simkin_imgs[0].size(0)
@@ -174,6 +184,7 @@ def train_model(
     pretrain_epochs=0,
     pretrain_lr=1e-4,
     freeze_frontend=False,
+    delta=0.01,
     noise_sigma=0.0,
     device='cpu'
 ):
@@ -199,17 +210,36 @@ def train_model(
         evaluate_simkin(model, test_simkin_loader, simkin_criterion, device)
 
     # Заморозка перцептивного фронт-энда (conv stem+layer1) после прогрева
-    if freeze_frontend:
-        for mod in list(model.stem.modules()) + list(model.layer1.modules()):
-            if isinstance(mod, nn.Conv2d):
-                for p in mod.parameters():
-                    p.requires_grad = False
-        n_fr = sum(1 for p in model.parameters() if not p.requires_grad)
-        print(f"[freeze] conv stem+layer1 заморожены ({n_fr} тензоров без grad)")
+    # if freeze_frontend:
+    #     for mod in list(model.stem.modules()) + list(model.layer1.modules()):
+    #         if isinstance(mod, nn.Conv2d):
+    #             for p in mod.parameters():
+    #                 p.requires_grad = False
+    #     n_fr = sum(1 for p in model.parameters() if not p.requires_grad)
+    #     print(f"[freeze] conv stem+layer1 заморожены ({n_fr} тензоров без grad)")
 
-    optimizer = optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=lr, weight_decay=weight_decay)
+    if freeze_frontend:
+        delta = 0.0
+    
+    # сохранение начальных весов fronted-слоев
+    frontend_convs = []
+    initial_weights = {}
+    for name, mod in model.named_modules():
+        if isinstance(mod, nn.Conv2d) and any(
+            name.startswith(p) for p in ["stem", "layer1"]
+        ):
+            frontend_convs.append((name, mod))
+            initial_weights[name] = mod.weight.data.clone()
+        
+    
+    frontend_param_ids = {id(mod.weight) for _, mod in frontend_convs}
+    optimizer = optim.AdamW([
+        {"params": [mod.weight for _, mod in frontend_convs],
+        "lr": 1e-5, "weight_decay": 0.0},
+        {"params": [p for p in model.parameters()
+                    if id(p) not in frontend_param_ids],
+        "lr": lr, "weight_decay": weight_decay},
+    ])
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     best_acc = 0.0
@@ -221,7 +251,7 @@ def train_model(
 
         train_loss, train_simkin_loss, train_acc = train_one_epoch(
             model, train_stl_loader, train_simkin_loader,
-            optimizer, cls_criterion, simkin_criterion, lambda_simkin, device
+            optimizer, cls_criterion, simkin_criterion, lambda_simkin, delta, frontend_convs, initial_weights, device
         )
         test_loss, test_acc = evaluate(model, test_stl_loader, cls_criterion, device)
         simkin_test_loss, simkin_test_acc = evaluate_simkin(
@@ -308,6 +338,7 @@ def main(cfg):
         pretrain_lr=tcfg.pretrain_lr,
         freeze_frontend=tcfg.freeze_frontend,
         noise_sigma=tcfg.frontend_noise,
+        delta=tcfg.delta,
         device=device,
     )
 
