@@ -1,16 +1,17 @@
-from data import create_loaders
-from model import Net
-from train import train
-from eval import eval
-from torchvision import transforms
-import contextlib
-import torch.nn as nn
-import torch
-import numpy as np
-import torchattacks
-import os
 import csv
+import os
 import random
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torchattacks
+from torchvision import transforms
+
+from data import create_loaders
+from eval import eval
+from model import Net
+from train import DendriteNoise, train
 
 
 def set_seed(seed):
@@ -19,12 +20,83 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
     if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms(True, warn_only=True)
+
+
+def create_model(
+    sigma_lateral,
+    sigma_prop,
+    sigma_add,
+    pyramidal_sigma,
+    pyramidal_gamma,
+    pyramidal_b,
+    device,
+):
+    return Net(
+        sigma_lateral=sigma_lateral,
+        sigma_prop=sigma_prop,
+        sigma_add=sigma_add,
+        sigma=pyramidal_sigma,
+        gamma=pyramidal_gamma,
+        b=pyramidal_b,
+    ).to(device)
+
+
+def fit(
+    model,
+    optimizer,
+    criterion,
+    train_loader,
+    test_loader,
+    device,
+    epochs,
+    model_path,
+    train_parameters,
+):
+    best_loss = float("inf")
+    dendrite_noise = DendriteNoise()
+
+    for epoch in range(epochs):
+        train_loss, train_accuracy = train(
+            model=model,
+            optimizer=optimizer,
+            criterion=criterion,
+            train_loader=train_loader,
+            device=device,
+            dendrite_noise=dendrite_noise,
+            **train_parameters,
+        )
+        test_loss, test_accuracy = eval(
+            model=model,
+            test_loader=test_loader,
+            criterion=criterion,
+            device=device,
+        )
+
+        print(
+            f"{epoch + 1}/{epochs} "
+            f"train_loss={train_loss:.6f} "
+            f"train_accuracy={train_accuracy:.6f} "
+            f"test_loss={test_loss:.6f} "
+            f"test_accuracy={test_accuracy:.6f}"
+        )
+
+        if test_loss < best_loss:
+            best_loss = test_loss
+            torch.save(model, model_path)
+
+
+def get_accuracy(model, loader, criterion, device):
+    _, accuracy = eval(
+        model=model,
+        test_loader=loader,
+        criterion=criterion,
+        device=device,
+    )
+    return accuracy
 
 
 def engine(
@@ -35,17 +107,31 @@ def engine(
     num_epochs,
     train_batch_size,
     test_batch_size,
-    sigma1,
-    sigma2,
-    sigma3,
+    sigma_lateral,
+    sigma_prop,
+    sigma_add,
+    pyramidal_sigma,
+    pyramidal_gamma,
+    pyramidal_b,
     omega1,
     omega2,
     omega3,
+    dendrite_theta1,
+    dendrite_sigma1,
+    dendrite_theta2,
+    dendrite_sigma2,
+    dendrite_theta3,
+    dendrite_sigma3,
     seed=42,
+    experiment_name="human_noise",
 ):
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("data", exist_ok=True)
+    os.makedirs("experiments", exist_ok=True)
 
-    set_seed(seed)
-    transforms_train = transforms.Compose(
+    set_seed(42)
+
+    train_transform = transforms.Compose(
         [
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, padding=4),
@@ -53,136 +139,135 @@ def engine(
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]
     )
-
-    transforms_test = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+    test_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
     )
-
     train_loader, test_loader = create_loaders(
         dataset_name,
         train_batch_size,
         test_batch_size,
-        transforms_train,
-        transforms_test,
+        train_transform,
+        test_transform,
     )
 
     criterion = nn.CrossEntropyLoss()
+    baseline_path = "models/model_baseline.tar"
 
-    if not os.path.exists("./models/model_baseline.tar"):
-        model_baseline = Net(0, 0, 0)
-        optimizer = torch.optim.SGD(
-            model_baseline.parameters(), lr=lr, momentum=momentum
+    if not os.path.exists(baseline_path):
+        baseline = create_model(
+            sigma_lateral=0.0,
+            sigma_prop=0.0,
+            sigma_add=0.0,
+            pyramidal_sigma=0.0,
+            pyramidal_gamma=pyramidal_gamma,
+            pyramidal_b=pyramidal_b,
+            device=device,
         )
-        model_baseline.train()
-        model_baseline.to(device)
+        baseline_optimizer = torch.optim.SGD(
+            baseline.parameters(),
+            lr=lr,
+            momentum=momentum,
+        )
+        fit(
+            model=baseline,
+            optimizer=baseline_optimizer,
+            criterion=criterion,
+            train_loader=train_loader,
+            test_loader=test_loader,
+            device=device,
+            epochs=num_epochs,
+            model_path=baseline_path,
+            train_parameters={},
+        )
 
-        eval_max_loss = float("inf")
-
-        for epoch in range(num_epochs):
-            train_loss, train_accuracy = train(
-                model=model_baseline,
-                optimizer=optimizer,
-                criterion=criterion,
-                device=device,
-                train_loader=train_loader,
-                omega1=0,
-                omega2=0,
-                omega3=0,
-            )
-
-            val_loss, val_accuracy = eval(
-                model=model_baseline,
-                test_loader=test_loader,
-                criterion=criterion,
-                device=device,
-            )
-            print(
-                f"{epoch+1}, train loss={train_loss}, train accuracy={train_accuracy}"
-            )
-            print(f"test loss={val_loss}, test accuracy={val_accuracy}")
-
-            if val_loss < eval_max_loss:
-                eval_max_loss = val_loss
-                torch.save(model_baseline, "./models/model_baseline.tar")
-
-    model_baseline = torch.load(
-        "./models/model_baseline.tar",
+    baseline = torch.load(
+        baseline_path,
         map_location=device,
         weights_only=False,
     )
-    model_baseline.to(device)
+    baseline.to(device)
+    baseline.eval()
 
-    loss, accuracy = eval(
-        model=model_baseline,
-        test_loader=test_loader,
-        criterion=criterion,
-        device=device,
+    fgsm_path = "data/adv_data_fgsm.pt"
+    attack_fgsm = torchattacks.FGSM(baseline, eps=8 / 255)
+    attack_fgsm.set_normalization_used(
+        mean=(0.5, 0.5, 0.5),
+        std=(0.5, 0.5, 0.5),
     )
-
-    normalization_mean = (0.5, 0.5, 0.5)
-    normalization_std = (0.5, 0.5, 0.5)
-
-    model_baseline.eval()
-
-    attack_fgsm = torchattacks.FGSM(model_baseline, eps=8 / 255)
-
-    attack_fgsm.set_normalization_used(mean=normalization_mean, std=normalization_std)
-
-    if not os.path.exists("./data/adv_data_fgsm.pt"):
-
+    if not os.path.exists(fgsm_path):
         attack_fgsm.save(
-            data_loader=test_loader, save_path="./data/adv_data_fgsm.pt", verbose=True
+            data_loader=test_loader,
+            save_path=fgsm_path,
+            verbose=True,
         )
+    fgsm_loader = attack_fgsm.load(load_path=fgsm_path)
 
-    with contextlib.redirect_stdout(open(os.devnull, "w")):
-        adv_loader_fgsm = attack_fgsm.load(load_path="./data/adv_data_fgsm.pt")
-
-    attacked_loss_fgsm, attacked_accuracy_fgsm = eval(
-        model=model_baseline,
-        test_loader=adv_loader_fgsm,
-        criterion=criterion,
-        device=device,
-    )
-
-    print(
-        f"Baseline - loss fgsm: {attacked_loss_fgsm}, accuracy fgsm: {attacked_accuracy_fgsm}"
-    )
-
+    pgd_path = "data/adv_data_pgd.pt"
     attack_pgd = torchattacks.PGD(
-        model_baseline,
+        baseline,
         eps=8 / 255,
         alpha=2 / 255,
         steps=10,
         random_start=True,
     )
-
-    attack_pgd.set_normalization_used(mean=normalization_mean, std=normalization_std)
-
-    if not os.path.exists("./data/adv_data_pgd.pt"):
-
+    attack_pgd.set_normalization_used(
+        mean=(0.5, 0.5, 0.5),
+        std=(0.5, 0.5, 0.5),
+    )
+    if not os.path.exists(pgd_path):
         attack_pgd.save(
-            data_loader=test_loader, save_path="./data/adv_data_pgd.pt", verbose=True
+            data_loader=test_loader,
+            save_path=pgd_path,
+            verbose=True,
+        )
+    pgd_loader = attack_pgd.load(load_path=pgd_path)
+
+    results_path = "experiments/results.csv"
+
+    if not os.path.exists(results_path):
+        baseline_accuracy = get_accuracy(
+            baseline,
+            test_loader,
+            criterion,
+            device,
+        )
+        baseline_fgsm = get_accuracy(
+            baseline,
+            fgsm_loader,
+            criterion,
+            device,
+        )
+        baseline_pgd = get_accuracy(
+            baseline,
+            pgd_loader,
+            criterion,
+            device,
         )
 
-    with contextlib.redirect_stdout(open(os.devnull, "w")):
-        adv_loader_pgd = attack_pgd.load(load_path="./data/adv_data_pgd.pt")
-
-    attacked_loss_pgd, attacked_accuracy_pgd = eval(
-        model=model_baseline,
-        test_loader=adv_loader_pgd,
-        criterion=criterion,
-        device=device,
-    )
-
-    print(
-        f"Baseline - loss pgd: {attacked_loss_pgd}, accuracy pgd: {attacked_accuracy_pgd}"
-    )
-    if not os.path.exists("./experiments/results.csv"):
-        with open("./experiments/results.csv", "a", newline="") as file:
+        with open(results_path, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(
                 (
                     "Model",
+                    "Seed",
+                    "Sigma Lateral",
+                    "Sigma Prop",
+                    "Sigma Add",
+                    "Pyramidal Sigma",
+                    "Pyramidal Gamma",
+                    "Pyramidal B",
+                    "Omega1",
+                    "Omega2",
+                    "Omega3",
+                    "Dendrite Theta1",
+                    "Dendrite Sigma1",
+                    "Dendrite Theta2",
+                    "Dendrite Sigma2",
+                    "Dendrite Theta3",
+                    "Dendrite Sigma3",
                     "Accuracy",
                     "Attacked Accuracy FGSM",
                     "Attacked Accuracy PGD",
@@ -190,50 +275,74 @@ def engine(
             )
             writer.writerow(
                 (
-                    "Baseline Model",
-                    accuracy,
-                    attacked_accuracy_fgsm,
-                    attacked_accuracy_pgd,
+                    "baseline",
+                    42,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    pyramidal_gamma,
+                    pyramidal_b,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    baseline_accuracy,
+                    baseline_fgsm,
+                    baseline_pgd,
                 )
             )
 
+    with open(results_path, newline="", encoding="utf-8") as file:
+        completed = {row["Model"] for row in csv.DictReader(file)}
+
+    if experiment_name in completed:
+        print(f"Skipping completed experiment: {experiment_name}")
+        return
+
     set_seed(seed)
-    model = Net(sigma1=sigma1, sigma2=sigma2, sigma3=sigma3)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
-    model.train()
-    model.to(device)
+    model = create_model(
+        sigma_lateral=sigma_lateral,
+        sigma_prop=sigma_prop,
+        sigma_add=sigma_add,
+        pyramidal_sigma=pyramidal_sigma,
+        pyramidal_gamma=pyramidal_gamma,
+        pyramidal_b=pyramidal_b,
+        device=device,
+    )
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=lr,
+        momentum=momentum,
+    )
+    model_path = f"models/model_{experiment_name}.tar"
 
-    eval_max_loss = float("inf")
-
-    for epoch in range(num_epochs):
-        train_loss, train_accuracy = train(
-            model=model,
-            optimizer=optimizer,
-            criterion=criterion,
-            device=device,
-            train_loader=train_loader,
-            omega1=omega1,
-            omega2=omega2,
-            omega3=omega3,
-        )
-
-        val_loss, val_accuracy = eval(
-            model=model,
-            test_loader=test_loader,
-            criterion=criterion,
-            device=device,
-        )
-        print(f"{epoch+1}, train loss={train_loss}, train accuracy={train_accuracy}")
-        print(f"test loss={val_loss}, test accuracy={val_accuracy}")
-
-        if val_loss < eval_max_loss:
-            eval_max_loss = val_loss
-            torch.save(
-                model,
-                f"./models/model_{sigma1}_{sigma2}_{sigma3}_{omega1}_{omega2}_{omega3}.tar",
-            )
-    model_path = (
-        f"./models/model_{sigma1}_{sigma2}_{sigma3}_" f"{omega1}_{omega2}_{omega3}.tar"
+    train_parameters = {
+        "omega1": omega1,
+        "omega2": omega2,
+        "omega3": omega3,
+        "dendrite_theta1": dendrite_theta1,
+        "dendrite_sigma1": dendrite_sigma1,
+        "dendrite_theta2": dendrite_theta2,
+        "dendrite_sigma2": dendrite_sigma2,
+        "dendrite_theta3": dendrite_theta3,
+        "dendrite_sigma3": dendrite_sigma3,
+    }
+    fit(
+        model=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        device=device,
+        epochs=num_epochs,
+        model_path=model_path,
+        train_parameters=train_parameters,
     )
 
     model = torch.load(
@@ -242,41 +351,40 @@ def engine(
         weights_only=False,
     )
     model.to(device)
-    attacked_loss_fgsm, attacked_accuracy_fgsm = eval(
-        model=model,
-        test_loader=adv_loader_fgsm,
-        criterion=criterion,
-        device=device,
-    )
 
-    print(
-        f"Loss noise model {attacked_loss_fgsm}, accuracy noise model {attacked_accuracy_fgsm}"
-    )
+    accuracy = get_accuracy(model, test_loader, criterion, device)
+    accuracy_fgsm = get_accuracy(model, fgsm_loader, criterion, device)
+    accuracy_pgd = get_accuracy(model, pgd_loader, criterion, device)
 
-    attacked_loss_pgd, attacked_accuracy_pgd = eval(
-        model=model,
-        test_loader=adv_loader_pgd,
-        criterion=criterion,
-        device=device,
-    )
-
-    print(
-        f"Loss noise model {attacked_loss_pgd}, accuracy noise model {attacked_accuracy_pgd}"
-    )
-
-    loss_model, accuracy_model = eval(
-        model=model,
-        test_loader=test_loader,
-        criterion=criterion,
-        device=device,
-    )
-    with open("./experiments/results.csv", "a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(
+    with open(results_path, "a", newline="", encoding="utf-8") as file:
+        csv.writer(file).writerow(
             (
-                f"Model_{sigma1}_{sigma2}_{sigma3}_{omega1}_{omega2}_{omega3}",
-                accuracy_model,
-                attacked_accuracy_fgsm,
-                attacked_accuracy_pgd,
+                experiment_name,
+                seed,
+                sigma_lateral,
+                sigma_prop,
+                sigma_add,
+                pyramidal_sigma,
+                pyramidal_gamma,
+                pyramidal_b,
+                omega1,
+                omega2,
+                omega3,
+                dendrite_theta1,
+                dendrite_sigma1,
+                dendrite_theta2,
+                dendrite_sigma2,
+                dendrite_theta3,
+                dendrite_sigma3,
+                accuracy,
+                accuracy_fgsm,
+                accuracy_pgd,
             )
         )
+
+    print(
+        f"{experiment_name}: "
+        f"clean={accuracy:.6f} "
+        f"fgsm={accuracy_fgsm:.6f} "
+        f"pgd={accuracy_pgd:.6f}"
+    )
