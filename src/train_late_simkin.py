@@ -16,6 +16,8 @@ from src.tile_dataset import SingleTileDataset
 from src.tile_model import TileResNet
 from src.train_tile import pretrain_simkin, train_tf, test_tf, eval_clean, eval_robust
 
+torch.backends.cudnn.benchmark = True     # cudnn подберёт быстрые ядра, т.к вход фикс.размера
+
 TAILS = {
     'l4': {'l4'},
     'l3_l4': {'l3', 'l4'},
@@ -23,7 +25,7 @@ TAILS = {
 }
 
 
-def _endless(loader):
+def _endless(loader):                 # бесконечный поток: пересоздаёт итератор → свежий shuffle/шум
     while True:
         for batch in loader:
             yield batch
@@ -122,17 +124,16 @@ def run(tile_dir, tile_csv, sigma, pretrain_epochs=30, pretrain_lr=1e-3,
         train_classifier(model_C, tr_loader, te_loader, ft_epochs, lr, device,
                          multitask=True, simk_loader=simk_loader, lam=lam)
 
-        clean = eval_clean(model_C, te_loader, device)
-        r_eot = eval_robust(model_C, te_loader, eps, pgd_steps, device, k_eot=eot_k)
-        results[tail_name] = (clean, r_eot)
-        torch.save(model_C.state_dict(), f"models/ResNetLateSimkin_{tail_name}_best.pt")
-        print(f"  [{tail_name}] clean={clean:.4f} | EOT-PGD(k={eot_k})={r_eot:.4f}")
+        torch.save(model_C.state_dict(), f"models/ResNetLateSimkin_{tail_name}_best.pt") 
+        clean = eval_clean(model_C, te_loader, device)                                   
+        results[tail_name] = clean
+        print(f"  [{tail_name}] clean={clean:.4f}  (robust — отдельным параллельным прогоном)")
         del model_C
         torch.cuda.empty_cache()
 
-    print("\n── Итог (шум на conv1) ──")
-    for t, (c, r) in results.items():
-        print(f"{t:10s} clean={c:.4f}  robust={r:.4f}")
+    print("\n── Итог: чекпойнты сохранены, robust считать отдельно ──")
+    for t, c in results.items():
+        print(f"{t:10s} clean={c:.4f}")
     return results
 
 
