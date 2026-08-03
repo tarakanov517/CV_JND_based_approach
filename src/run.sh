@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=gaussian-curriculum
+#SBATCH --job-name=gaussian-curriculum-100
 #SBATCH --partition=rocky
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=9
-#SBATCH --time=0-8:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --mail-user=arilmusaev@edu.hse.ru
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
 
 PROJECT_DIR="$SLURM_SUBMIT_DIR"
-RUN_DIR="$PROJECT_DIR/curriculum_40"
+RUN_DIR="$PROJECT_DIR/curriculum_100"
 
 module load Python/PyTorch_GPU_v2.4
 
@@ -28,14 +28,14 @@ mkdir -p "$RUN_DIR/experiments"
 
 cd "$RUN_DIR"
 
-EPOCHS=40
+EPOCHS=100
 LEARNING_RATE=0.01
 MOMENTUM=0.9
 TRAIN_BATCH_SIZE=32
 TEST_BATCH_SIZE=32
 DATASET="uoft-cs/cifar10"
-WARMUP_EPOCHS=10
-RAMP_EPOCHS=20
+WARMUP_EPOCHS=25
+RAMP_EPOCHS=25
 TOTAL_EXPERIMENTS=24
 
 EXPERIMENTS=(

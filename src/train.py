@@ -35,6 +35,7 @@ def train(
 
         with torch.no_grad():
             for name, param in model.named_parameters():
+                print(name, param)
                 if not param.requires_grad:
                     continue
 
