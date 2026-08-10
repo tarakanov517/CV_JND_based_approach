@@ -5,6 +5,8 @@ from torchvision import models
 
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
+from src.model import DualBN, convert_bn_to_dual   # раздельные BN для clas/simk
+
 _TAPS = ['conv1', 'stem', 'l1.0', 'l1.1', 'l1', 'l2', 'l3', 'l4']
 _CH = {'conv1': 64, 'stem': 64, 'l1.0': 256, 'l1.1': 256, 'l1': 256,
        'l2': 512, 'l3': 1024, 'l4': 2048}
@@ -13,16 +15,21 @@ _CH = {'conv1': 64, 'stem': 64, 'l1.0': 256, 'l1.1': 256, 'l1': 256,
 class TileResNet(nn.Module):
 
     def __init__(self, num_classes: int = 10, noise_sigma: float = 0.0, tap: str = 'l1',
-                 noise_tap: str = None):
+                 noise_tap: str = None, dual_bn: bool = False):
         super().__init__()
         self.noise_sigma = noise_sigma
         self.tap = tap                       # ветвление Симкин-головы
         self.noise_tap = noise_tap or tap    # место впрыскивания шума
+        self.dual_bn = dual_bn
         r = models.resnet50(weights="IMAGENET1K_V1")
 
         self.stem = nn.Sequential(r.conv1, r.bn1, r.relu, r.maxpool)
-        self.layer1 = r.layer1 
+        self.layer1 = r.layer1
         self.layer2, self.layer3, self.layer4 = r.layer2, r.layer3, r.layer4
+
+        if dual_bn:                          # возможность заменить BN на DualBN до сборки stages, чтобы срезы видели DualBN
+            for m in (self.stem, self.layer1, self.layer2, self.layer3, self.layer4):
+                convert_bn_to_dual(m)
 
         self._stages = [
             ('conv1', self.stem[:3]), ('stem', self.stem[3]),
@@ -55,7 +62,14 @@ class TileResNet(nn.Module):
             x = m(x)
         return x
 
+    def set_domain(self, d):                              # переключить DualBN между clas/simk
+        if self.dual_bn:
+            for m in self.modules():
+                if isinstance(m, DualBN):
+                    m.domain = d
+
     def forward(self, x, mode: str = 'clas'):
+        self.set_domain(mode)
         if mode == 'simk':                                # голова ветвится на tap
             f = self._frontend(x)
             a = self.simkin_avg(f).flatten(1)
