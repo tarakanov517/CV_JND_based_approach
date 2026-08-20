@@ -212,8 +212,7 @@ def engine(
             )
 
     set_seed(seed)
-    
-    
+
     model = Net(sigma1=sigma1, sigma2=sigma2, sigma3=sigma3).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 

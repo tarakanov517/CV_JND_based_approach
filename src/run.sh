@@ -1,16 +1,22 @@
 #!/bin/bash
-#SBATCH --job-name=gaussian-curriculum-100
+#SBATCH --job-name=gaussian-seeds
 #SBATCH --partition=rocky
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=9
 #SBATCH --time=1-00:00:00
+#SBATCH --array=0-4
+#SBATCH --output=slurm-%A_%a.out
 #SBATCH --mail-user=arilmusaev@edu.hse.ru
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
 
 PROJECT_DIR="$SLURM_SUBMIT_DIR"
-RUN_DIR="$PROJECT_DIR/curriculum_100"
+
+SEEDS=(42 43 44 45 46)
+SEED="${SEEDS[$SLURM_ARRAY_TASK_ID]}"
+
+RUN_DIR="$PROJECT_DIR/check_seeds/seed_$SEED"
 
 module load Python/PyTorch_GPU_v2.4
 
@@ -27,74 +33,53 @@ mkdir -p "$RUN_DIR/data"
 mkdir -p "$RUN_DIR/experiments"
 
 cd "$RUN_DIR"
+echo "Текущий seed: $SEED"
+echo "Рабочая папка: $RUN_DIR"
 
-EPOCHS=100
+EPOCHS=40
 LEARNING_RATE=0.01
 MOMENTUM=0.9
 TRAIN_BATCH_SIZE=32
 TEST_BATCH_SIZE=32
 DATASET="uoft-cs/cifar10"
-WARMUP_EPOCHS=25
-RAMP_EPOCHS=25
-TOTAL_EXPERIMENTS=24
 
-EXPERIMENTS=(
-    "activation_block1|0.15|0.0|0.0|0.0|0.0|0.0"
-    "activation_block2|0.0|0.15|0.0|0.0|0.0|0.0"
-    "activation_classifier|0.0|0.0|0.04|0.0|0.0|0.0"
-    "parameter_block1|0.0|0.0|0.0|0.002|0.0|0.0"
-    "parameter_block2|0.0|0.0|0.0|0.0|0.001|0.0"
-    "parameter_classifier|0.0|0.0|0.0|0.0|0.0|0.003"
-    "all_activation|0.15|0.15|0.04|0.0|0.0|0.0"
-    "all_parameter|0.0|0.0|0.0|0.002|0.001|0.003"
-    "block1_combined|0.15|0.0|0.0|0.002|0.0|0.0"
-    "block2_combined|0.0|0.15|0.0|0.0|0.001|0.0"
-    "classifier_combined|0.0|0.0|0.04|0.0|0.0|0.003"
-    "full_combined|0.15|0.15|0.04|0.002|0.001|0.003"
-)
+TOTAL_EXPERIMENTS=3
+CURRENT_EXPERIMENT=0
 
 is_completed() {
-    local expected_name="$1"
+    local model_name="$1"
     local results_file="$RUN_DIR/experiments/results.csv"
 
-    if [[ ! -f "$results_file" ]]; then
-        return 1
-    fi
-
-    awk -F',' -v name="$expected_name" '
+    [[ -f "$results_file" ]] && awk -F',' -v name="$model_name" '
         $1 == name { found = 1 }
         END { exit(found ? 0 : 1) }
     ' "$results_file"
 }
 
 run_experiment() {
-    local label="$1"
-    local schedule="$2"
-    local sigma1="$3"
-    local sigma2="$4"
-    local sigma3="$5"
-    local omega1="$6"
-    local omega2="$7"
-    local omega3="$8"
-    local expected_name
+    local name="$1"
+    local sigma1="$2"
+    local sigma2="$3"
+    local sigma3="$4"
+    local omega1="$5"
+    local omega2="$6"
+    local omega3="$7"
+    local model_name="Model_${sigma1}_${sigma2}_${sigma3}_${omega1}_${omega2}_${omega3}"
 
-    if [[ "$schedule" == "fixed" ]]; then
-        expected_name="Model_${sigma1}_${sigma2}_${sigma3}_${omega1}_${omega2}_${omega3}"
-    else
-        expected_name="Model_${EPOCHS}_${schedule}_w${WARMUP_EPOCHS}_r${RAMP_EPOCHS}_${sigma1}_${sigma2}_${sigma3}_${omega1}_${omega2}_${omega3}"
-    fi
+    CURRENT_EXPERIMENT=$((CURRENT_EXPERIMENT + 1))
 
-    if is_completed "$expected_name"; then
-        echo "Пропуск завершённого эксперимента: $expected_name"
+    if is_completed "$model_name"; then
+        echo "Пропуск завершённого эксперимента: $model_name"
         return
     fi
 
     echo
     echo "============================================================"
-    echo "Experiment $CURRENT_EXPERIMENT/$TOTAL_EXPERIMENTS"
-    echo "label=$label schedule=$schedule"
-    echo "sigma=($sigma1, $sigma2, $sigma3)"
-    echo "omega=($omega1, $omega2, $omega3)"
+    echo "Эксперимент $CURRENT_EXPERIMENT/$TOTAL_EXPERIMENTS"
+    echo "Название: $name"
+    echo "Seed: $SEED"
+    echo "Sigma: $sigma1 $sigma2 $sigma3"
+    echo "Omega: $omega1 $omega2 $omega3"
     echo "============================================================"
 
     srun python3 "$PROJECT_DIR/main.py" \
@@ -110,33 +95,22 @@ run_experiment() {
         --omega1 "$omega1" \
         --omega2 "$omega2" \
         --omega3 "$omega3" \
-        --noise_schedule "$schedule" \
-        --warmup_epochs "$WARMUP_EPOCHS" \
-        --ramp_epochs "$RAMP_EPOCHS"
+        --noise_schedule fixed \
+        --seed "$SEED"
 }
 
-CURRENT_EXPERIMENT=0
+run_experiment "activation_block1" \
+    0.15 0.0 0.0 \
+    0.0 0.0 0.0
 
-for experiment in "${EXPERIMENTS[@]}"; do
-    IFS='|' read -r label sigma1 sigma2 sigma3 omega1 omega2 omega3 <<< "$experiment"
+run_experiment "parameters_block1" \
+    0.0 0.0 0.0 \
+    0.002 0.0 0.0
 
-    for schedule in fixed linear; do
-        CURRENT_EXPERIMENT=$((CURRENT_EXPERIMENT + 1))
-
-        run_experiment \
-            "$label" \
-            "$schedule" \
-            "$sigma1" \
-            "$sigma2" \
-            "$sigma3" \
-            "$omega1" \
-            "$omega2" \
-            "$omega3"
-    done
-done
+run_experiment "parameters_blocks" \
+    0.0 0.0 0.0 \
+    0.002 0.001 0.003
 
 echo
-echo "============================================================"
-echo "Все 24 эксперимента завершены"
+echo "Seed $SEED завершён"
 echo "Результаты: $RUN_DIR/experiments/results.csv"
-echo "============================================================"

@@ -82,6 +82,12 @@ if __name__ == "__main__":
         default=10,
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+    )
+
     if torch.cuda.is_available():
         device = "cuda:0"
     else:
@@ -107,4 +113,5 @@ if __name__ == "__main__":
         noise_schedule=args.noise_schedule,
         warmup_epochs=args.warmup_epochs,
         ramp_epochs=args.ramp_epochs,
+        seed=args.seed,
     )
