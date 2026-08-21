@@ -129,7 +129,7 @@ def engine(
     os.makedirs("data", exist_ok=True)
     os.makedirs("experiments", exist_ok=True)
 
-    set_seed(42)
+    set_seed(seed)
 
     train_transform = transforms.Compose(
         [
@@ -276,7 +276,7 @@ def engine(
             writer.writerow(
                 (
                     "baseline",
-                    42,
+                    seed,
                     0.0,
                     0.0,
                     0.0,
