@@ -1,3 +1,6 @@
 weights/
 logs/
 data/
+venv/
+examples/
+/results
