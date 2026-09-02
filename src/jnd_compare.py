@@ -25,7 +25,7 @@ from scripts.eval_blackbox import load_model, get_loader01, eot_pgd_acc
 
 L_MIN, L_MAX = 0.1, 300.0
 CACHE_DIR = "jnd_cache"
-JND_CKPT = "models/ResNet50_jnd_kkk_stl10.pth"
+JND_CKPT = "/kaggle/input/models/mrtyom/resnetmode/pytorch/default/12/ResNet50_jnd_kkk_stl10.pth"
 JND_EPOCHS = 60
 JND_LR = 1e-3
 N_EVAL = 1000
@@ -33,9 +33,9 @@ EPS_LIST = [2 / 255, 4 / 255, 8 / 255, 16 / 255]
 PGD_STEPS = 20
 EOT_K = 20
 JND_DIST = True                                     # Lp и в JND-домене (дорого: лишний трансформ на батч)
-RGB_CKPT = "models/ResNet50_rgb_stl10.pth"
+RGB_CKPT = "/kaggle/input/models/mrtyom/resnetmode/pytorch/default/12/ResNet50_rgb_stl10.pth"
 
-MY_CKPT = "models/ResNetLateSimkin_l4_best.pt"
+MY_CKPT = "/kaggle/input/models/mrtyom/resnetmode/pytorch/default/12/ResNetLateSimkin_l4_lam_0.2_best.pt"
 MY_KW = dict(arch="tile", tap="l4", noise_tap="conv1", dual_bn=True)
 MY_NOISE = 0.5
 
