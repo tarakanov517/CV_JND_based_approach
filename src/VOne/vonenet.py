@@ -2,7 +2,7 @@
 from collections import OrderedDict
 from torch import nn
 from .modules import VOneBlock
-from .back_ends import ResNetBackEnd, Bottleneck, AlexNetBackEnd, CORnetSBackEnd
+from .back_ends import ResNetBackEnd, Bottleneck
 from .params import generate_gabor_param
 import numpy as np
 
