@@ -3,5 +3,5 @@ logs/
 data/
 venv/
 examples/
-/results
 jnd.ipynb
+attack_results.json
