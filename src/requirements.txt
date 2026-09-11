@@ -1,0 +1,5 @@
+datasets>=2.19
+numpy>=1.24
+Pillow>=10.0
+torch>=2.4
+torchvision>=0.19
