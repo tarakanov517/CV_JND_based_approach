@@ -2,16 +2,16 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-import torch
 import os
 import json
-from pathlib import Path
+import torch
+import torchattacks
+from tqdm.auto import tqdm
+
 from utils.jnd_model import SimkinJNDModel
 from utils.image_converter import ImageConverter
 from utils.auxiliary_functions import make_backbone, get_loader01
 from utils.bpda import BPDAModelWrapper
-import torchattacks
-from tqdm.auto import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 NUM_WORKERS = int(os.environ.get('SLURM_CPUS_PER_TASK', 4))
@@ -87,7 +87,7 @@ MODELS_CONFIG = [
 RGB_MODEL_CONFIG = MODELS_CONFIG[0]
 
 def compute_metrics_dict(diff_tensor):
-    diff_flat = diff_tensor.view(diff_tensor.size(0), -1)
+    diff_flat = diff_tensor.reshape(diff_tensor.size(0), -1)
     l1 = torch.norm(diff_flat, p=1, dim=1).cpu().tolist()
     l2 = torch.norm(diff_flat, p=2, dim=1).cpu().tolist()
     linf = torch.max(torch.abs(diff_flat), dim=1)[0].cpu().tolist()
@@ -97,17 +97,13 @@ def get_target_features(wrapper, x_tensor):
     with torch.no_grad():
         if hasattr(wrapper, 'transform'):
             return wrapper.transform(x_tensor)
-        elif hasattr(wrapper, 'preprocess'):
-            return wrapper.preprocess(x_tensor)
-        elif hasattr(wrapper, 'preprocess_image'):
-            return wrapper.preprocess_image(x_tensor)
-        return x_tensor
+        return None
 
 if __name__ == '__main__':
     converter = ImageConverter()
     jnd_model = SimkinJNDModel()
 
-    test_loader_1000 = get_loader01(n=1000, batch_size=256, num_workers=NUM_WORKERS)
+    test_loader_1000 = get_loader01(n=1000, batch_size=128, num_workers=NUM_WORKERS)
 
     rgb_model = make_backbone().to(device)
     rgb_model.load_state_dict(torch.load(RGB_MODEL_CONFIG['weights'], map_location=device))
@@ -176,18 +172,18 @@ if __name__ == '__main__':
                 wrapper = target_models[name]
                 p_adv = wrapper(x_adv).argmax(dim=1).cpu()
                 adv_predictions[name].append(p_adv)
-                
+
                 norms_storage[name]['rgb']['l1'].extend(b_l1)
                 norms_storage[name]['rgb']['l2'].extend(b_l2)
                 norms_storage[name]['rgb']['linf'].extend(b_linf)
 
                 z_clean = get_target_features(wrapper, x)
                 z_adv = get_target_features(wrapper, x_adv)
-                t_l1, t_l2, t_linf = compute_metrics_dict(z_adv - z_clean)
-
-                norms_storage[name]['target']['l1'].extend(t_l1)
-                norms_storage[name]['target']['l2'].extend(t_l2)
-                norms_storage[name]['target']['linf'].extend(t_linf)
+                if z_clean is not None and z_adv is not None:
+                    t_l1, t_l2, t_linf = compute_metrics_dict(z_adv - z_clean)
+                    norms_storage[name]['target']['l1'].extend(t_l1)
+                    norms_storage[name]['target']['l2'].extend(t_l2)
+                    norms_storage[name]['target']['linf'].extend(t_linf)
 
         total_samples = all_targets.size(0)
         for cfg in MODELS_CONFIG:
@@ -213,8 +209,6 @@ if __name__ == '__main__':
 
     results['bpda'] = {}
 
-    total_samples = all_targets.size(0)
-
     for config in MODELS_CONFIG:
         name = config['name']
         results['bpda'][name] = {}
@@ -222,7 +216,7 @@ if __name__ == '__main__':
 
         for eps in tqdm(EPS_LIST, desc=f"BPDA eps ({name})", leave=True):
             torch.cuda.empty_cache()
-            
+
             attack = torchattacks.PGD(
                 wrapper,
                 eps=eps,
@@ -248,10 +242,11 @@ if __name__ == '__main__':
 
                 z_clean = get_target_features(wrapper, x)
                 z_adv = get_target_features(wrapper, x_adv)
-                t_l1, t_l2, t_linf = compute_metrics_dict(z_adv - z_clean)
-                tgt_l1.extend(t_l1)
-                tgt_l2.extend(t_l2)
-                tgt_linf.extend(t_linf)
+                if z_clean is not None and z_adv is not None:
+                    t_l1, t_l2, t_linf = compute_metrics_dict(z_adv - z_clean)
+                    tgt_l1.extend(t_l1)
+                    tgt_l2.extend(t_l2)
+                    tgt_linf.extend(t_linf)
 
                 with torch.no_grad():
                     preds_adv = wrapper(x_adv).argmax(dim=1).cpu()
