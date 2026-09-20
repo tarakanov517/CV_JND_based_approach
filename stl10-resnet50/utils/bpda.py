@@ -50,15 +50,20 @@ class BPDAModelWrapper(nn.Module):
         self.layer_type = layer_type
         self.target_width_cm = target_width_cm
 
-    def forward(self, x_rgb):
+    def transform(self, x_rgb):
         if self.layer_type == 'rgb':
-            return self.model(x_rgb)
-
-        x_jnd = JNDBPDAFunction.apply(
+            return None
+        return JNDBPDAFunction.apply(
             x_rgb, 
             self.converter, 
             self.jnd_model, 
             self.layer_type, 
             self.target_width_cm
         )
+
+    def forward(self, x_rgb):
+        if self.layer_type == 'rgb':
+            return self.model(x_rgb)
+
+        x_jnd = self.transform(x_rgb)
         return self.model(x_jnd)
