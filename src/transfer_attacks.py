@@ -104,6 +104,8 @@ def main():
             {
                 "name": name,
                 "seed": args.seed,
+                "sweep_kind": results[name].get("sweep_kind", ""),
+                "sweep_level": results[name].get("sweep_level", 0.0),
                 "clean_accuracy": results[name]["clean_accuracy"],
                 "baseline_fgsm_accuracy": correct[name]["fgsm"] / total,
                 "baseline_pgd_accuracy": correct[name]["pgd"] / total,

@@ -18,6 +18,8 @@ from train import fit
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True)
+    parser.add_argument("--sweep-kind", default="")
+    parser.add_argument("--sweep-level", type=float, default=0.0)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--weights", type=Path, default=Path("weights.pth"))
     parser.add_argument("--dataset", default="ilee0022/Caltech-256")
@@ -114,6 +116,8 @@ def main():
     )
     result = {
         "name": args.name,
+        "sweep_kind": args.sweep_kind,
+        "sweep_level": args.sweep_level,
         "seed": args.seed,
         "best_validation_accuracy": best_accuracy,
         "epochs_trained": len(history),
