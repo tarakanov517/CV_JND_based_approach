@@ -2,6 +2,5 @@ weights/
 logs/
 data/
 venv/
-examples/
 jnd.ipynb
 attack_results.json
