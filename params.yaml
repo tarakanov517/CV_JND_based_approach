@@ -66,3 +66,67 @@ train_tile:
   robust_batches: null # null -> весь тест; int -> первые N батчей
   seed: 42
   tap: "conv1" # точка ветвления: conv1|stem|l1.0|l1.1|l1|l2|l3|l4 (мельче = ближе к V1)
+
+# Late-Simkin (голова l4, шум conv1): общая идея для 96 и 224
+late_simkin:
+  dataset: stl10 # stl10 | imagenette | imagewoof
+  data_root: data
+  tile_dir: "output_solo_exp/dataset_tile"
+  tile_csv: "output_solo_exp/labels_tile.csv"
+  render_sigma: null # null -> noise.sigma (σ шума рендера тайла, px)
+  pretrain_epochs: 30
+  pretrain_lr: 0.001
+  cls_epochs: 10 # фаза 2 (== baseline)
+  ft_epochs: 10 # фаза 3
+  lr: 0.001
+  lam: 0.2 # вес Симкин-лосса (λ=0 -> контроль «только шум»)
+  noise_sigma: 0.5
+  noise_sigmas: null # список -> несколько σ за один запуск
+  soft_delta: 0.01
+  batch_size: 512
+  num_workers: 8
+  tails: [l4]
+  seeds: [42]
+  amp: false
+  out_dir: models
+  cache_dir: models/cache
+
+# noise-ablation на 96 (scripts/noise_ablation.py)
+noise_ablation:
+  sigmas: [0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0]
+  seeds: [42]
+  lam: 0.2
+  tail: l4
+  eval_n: 2000 # случайная подвыборка теста под EOT-PGD (null -> весь тест)
+  eval_seed: 0
+  eps_255: [2, 4]
+  pgd_steps: 20
+  eot_k: 20
+  clean_reps: 1 # 1 = как в старых таблицах
+  clean_drop: 0.15 # «плохо обучается»: clean < baseline_clean - clean_drop
+  min_train_acc: 0.60 # ... или train_acc последней эпохи ниже
+  patience: 2 # стоп после стольких подряд «плохих» σ
+  with_no_simkin: false # для каждой σ ещё и λ=0 (контроль «только шум»)
+  out_csv: output/noise_ablation_stl10.csv
+
+# возвращаемся к 224
+exp224:
+  late_simkin:
+    dataset: imagenette
+    tile_dir: "output_224/dataset_tile"
+    tile_csv: "output_224/labels_tile.csv"
+    batch_size: 64 # clas-батч + simk-батч в одном шаге; 64 влезает в 16 ГБ с AMP
+    num_workers: 4
+    amp: true
+    noise_sigma: 0.5 # <- заменить на σ*, выбранную по noise-ablation
+  vone:
+    dataset: imagenette
+    data_root: data
+    pretrained: "models/vonenet_resnet50_e70.pth.tar" # https://vonenetmodels.s3.us-east-2.amazonaws.com/vonenet_resnet50_e70.pth.tar
+    epochs: 10
+    lr: 0.001
+    batch_size: 64
+    num_workers: 4
+    amp: true
+    seed: 42
+    out_dir: models
