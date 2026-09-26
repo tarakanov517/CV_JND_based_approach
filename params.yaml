@@ -83,7 +83,7 @@ late_simkin:
   noise_sigma: 0.5
   noise_sigmas: null # список -> несколько σ за один запуск
   soft_delta: 0.01
-  batch_size: 512
+  batch_size: 128 # 512
   num_workers: 8
   tails: [l4]
   seeds: [42]
