@@ -1,3 +1,21 @@
+"""Late-Simkin: голова Симкина на l4, нейронный шум на conv1.
+
+Фазы:
+  1. Симкин-претрейн (голова на l4)                     -> кеш {cache}/{ds}_simkin_head_l4_s{seed}.pt
+  2. Базовый классификатор (Симкин off, шум off)       -> кеш {cache}/{ds}_base_s{seed}.pt
+     Это же и есть BASELINE: ImageNet-pretrain ResNet50, дообученный тем же рецептом.
+  3. Мультитаск-дообучение хвоста + шум на conv1       -> {out}/{ds}_LateSimkin_{tail}_ns{σ}_lam{λ}_s{seed}.pt
+
+Фазы 1–2 от σ не зависят, поэтому кешируются и переиспользуются (noise-ablation гоняет только фазу 3).
+
+Запуск (параметры = секция late_simkin из params.yaml + пресет + CLI-оверрайды OmegaConf):
+    python src/train_late_simkin.py                                   # STL-10 96, как раньше
+    python src/train_late_simkin.py preset=exp224                     # Imagenette 224
+    python src/train_late_simkin.py preset=exp224 noise_sigmas=[0.5,1.0] tails=[l4]
+"""
+import sys
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,15 +24,14 @@ import rootutils
 from omegaconf import OmegaConf
 from torch import optim
 from torch.utils.data import DataLoader, random_split
-from datasets import load_dataset
 from tqdm import tqdm
 
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
-from src.custom_datasets import STL10RGBDataset
+from src.cls_data import get_loaders
 from src.tile_dataset import SingleTileDataset
 from src.tile_model import TileResNet
-from src.train_tile import pretrain_simkin, train_tf, test_tf, eval_clean, eval_robust
+from src.train_tile import pretrain_simkin, eval_clean
 
 torch.backends.cudnn.benchmark = True
 
@@ -23,6 +40,7 @@ TAILS = {
     'l3_l4': {'l3', 'l4'},
     'l2_l3_l4': {'l2', 'l3', 'l4'},
 }
+MODEL_KW = dict(tap='l4', noise_tap='conv1', dual_bn=True)    # для load_model в eval
 
 
 def _endless(loader):                 # бесконечный поток: пересоздаёт итератор -> свежий shuffle/шум
@@ -56,112 +74,168 @@ def clamp_frozen(pairs, delta):                 # вернуть conv-веса �
 
 def train_classifier(model, tr_loader, te_loader, epochs, lr, device,
                      multitask=False, simk_loader=None, lam=0.4,
-                     frozen=None, delta=0.0, freeze_bn=False):
-    best = 0.0
+                     frozen=None, delta=0.0, freeze_bn=False, amp=False):
+    """Возвращает историю: список dict(epoch, train_loss, train_acc, test_acc)."""
     criterion = nn.CrossEntropyLoss()
     opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)   # все параметры обучаемы, мороз — клэмпом
     sched = optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     simk_it = _endless(simk_loader) if multitask else None
+    use_amp = amp and device.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+    hist = []
     for ep in range(1, epochs + 1):
         model.train()
         if freeze_bn:                 # не портим BN-статистики
             freeze_bn_stats(model)
+        tot, c, n = 0.0, 0, 0
         for x, y in tqdm(tr_loader, desc=f"E{ep}/{epochs}", leave=False):
-            x, y = x.to(device), y.to(device)
-            opt.zero_grad()
-            loss = criterion(model(x, mode='clas'), y)
-            if multitask:
-                xs, ys = next(simk_it)
-                xs, ys = xs.to(device), ys.to(device)
-                loss = loss + lam * F.mse_loss(model(xs, mode='simk').squeeze(1), ys)
-            loss.backward()
-            opt.step()
+            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+            opt.zero_grad(set_to_none=True)
+            with torch.autocast(device.type, dtype=torch.float16, enabled=use_amp):
+                logits = model(x, mode='clas')
+                loss = criterion(logits.float(), y)
+                if multitask:
+                    xs, ys = next(simk_it)
+                    xs, ys = xs.to(device, non_blocking=True), ys.to(device, non_blocking=True)
+                    loss = loss + lam * F.mse_loss(model(xs, mode='simk').squeeze(1).float(), ys)
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
             if frozen and delta > 0:            # soft-freeze: возврат conv-весов в +-δ
                 clamp_frozen(frozen, delta)
+            tot += loss.item() * y.size(0)
+            c += (logits.argmax(1) == y).sum().item()
+            n += y.size(0)
         sched.step()
         acc = eval_clean(model, te_loader, device)
-        best = max(best, acc)
-        print(f"  Epoch {ep:02d} | test_acc={acc:.4f}")
-    return model
+        hist.append(dict(epoch=ep, train_loss=tot / n, train_acc=c / n, test_acc=acc))
+        print(f"  Epoch {ep:02d} | loss={tot/n:.4f} train_acc={c/n:.4f} | test_acc={acc:.4f}")
+    return hist
 
 
-def run(tile_dir, tile_csv, sigma, pretrain_epochs=30, pretrain_lr=1e-3,
-        cls_epochs=10, ft_epochs=10, lr=1e-3, lam=0.4, noise_sigma=0.5, soft_delta=0.01,
-        batch_size=128, num_workers=8, eps=2 / 255, pgd_steps=20, eot_k=20,
-        tails=('l4', 'l3_l4', 'l2_l3_l4'), seed=42):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
-
-    tile_full = SingleTileDataset(tile_dir, tile_csv, sigma=sigma, fixed_seed=None)
+def build_loaders(cfg):
+    """(simk_loader, tr_loader, te_loader)."""
+    tile_full = SingleTileDataset(cfg.tile_dir, cfg.tile_csv, sigma=cfg.render_sigma, fixed_seed=None)
     n_val = max(1, int(0.2 * len(tile_full)))
     tile_tr, _ = random_split(tile_full, [len(tile_full) - n_val, n_val],
-                              generator=torch.Generator().manual_seed(seed))
-    simk_loader = DataLoader(tile_tr, batch_size=batch_size, shuffle=True,
-                             num_workers=num_workers, drop_last=True)
-    stl = load_dataset("jxie/stl10")
-    tr_loader = DataLoader(STL10RGBDataset(stl["train"], transform=train_tf),
-                           batch_size=batch_size, shuffle=True,
-                           num_workers=num_workers, drop_last=True)
-    te_loader = DataLoader(STL10RGBDataset(stl["test"], transform=test_tf),
-                           batch_size=batch_size, shuffle=False, num_workers=num_workers)
+                              generator=torch.Generator().manual_seed(cfg.get("split_seed", 42)))  # сплит тайлов фиксирован
+    simk_loader = DataLoader(tile_tr, batch_size=cfg.batch_size, shuffle=True,
+                             num_workers=cfg.num_workers, drop_last=True,
+                             pin_memory=torch.cuda.is_available())
+    tr_loader, te_loader = get_loaders(cfg.dataset, cfg.batch_size, cfg.num_workers, cfg.data_root)
+    return simk_loader, tr_loader, te_loader
 
-    # 1-я фаза: обучаем Симкин-голов на l4
+
+def _cache_path(cfg, what, seed):
+    return Path(cfg.cache_dir) / f"{cfg.dataset}_{what}_s{seed}.pt"
+
+
+def new_model(noise_sigma=0.0, num_classes=10):
+    return TileResNet(num_classes=num_classes, noise_sigma=noise_sigma, **MODEL_KW)
+
+
+def get_phase1_head(cfg, simk_loader, device, seed):
+    """Фаза 1: Симкин-претрейн, голова на l4. Возвращает state_dict головы (кешируется)."""
+    path = _cache_path(cfg, "simkin_head_l4", seed)
+    if path.exists():
+        print(f"[Фаза 1] кеш: {path}")
+        return torch.load(path, map_location="cpu")
     print("\n[Фаза 1] Симкин-претрейн, голова на l4")
-    model_A = TileResNet(num_classes=10, noise_sigma=0.0, tap='l4', noise_tap='conv1', dual_bn=True).to(device)
-    pretrain_simkin(model_A, simk_loader, pretrain_epochs, pretrain_lr, device)
-    simkin_head_w = {k: v.detach().clone() for k, v in model_A.simkin_head.state_dict().items()}
+    torch.manual_seed(seed)
+    model_A = new_model().to(device)
+    pretrain_simkin(model_A, simk_loader, cfg.pretrain_epochs, cfg.pretrain_lr, device, amp=cfg.amp)
+    head = {k: v.detach().cpu().clone() for k, v in model_A.simkin_head.state_dict().items()}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(head, path)
     del model_A
     torch.cuda.empty_cache()
+    return head
 
-    # 2-я фаза: обучаем базовый классификатор с нуля (Симкин и шум off)
-    print("\n[Фаза 2] Базовый классификатор с нуля")
-    model_B = TileResNet(num_classes=10, noise_sigma=0.0, tap='l4', noise_tap='conv1', dual_bn=True).to(device)
-    train_classifier(model_B, tr_loader, te_loader, cls_epochs, lr, device)   # всё обучаемо, без заморозки
-    base_state = {k: v.detach().clone() for k, v in model_B.state_dict().items()}
+
+def get_phase2_base(cfg, tr_loader, te_loader, device, seed):
+    """Фаза 2: базовый классификатор (== baseline). Возвращает state_dict (кешируется)."""
+    path = _cache_path(cfg, "base", seed)
+    if path.exists():
+        print(f"[Фаза 2] кеш: {path}")
+        return torch.load(path, map_location="cpu")
+    print("\n[Фаза 2] Базовый классификатор (Симкин off, шум off) == baseline")
+    torch.manual_seed(seed)
+    model_B = new_model().to(device)
+    train_classifier(model_B, tr_loader, te_loader, cfg.cls_epochs, cfg.lr, device, amp=cfg.amp)
+    state = {k: v.detach().cpu().clone() for k, v in model_B.state_dict().items()}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(state, path)
+    base_out = Path(cfg.out_dir) / f"{cfg.dataset}_baseline_s{seed}.pt"   # отдельная копия под бенчмарк
+    base_out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(state, base_out)
     del model_B
     torch.cuda.empty_cache()
+    return state
 
-    # 3-я фаза: мультитаск-дообучение хвоста (обычный классификатор + Симкин), шум на conv1
-    results = {}
-    for tail_name in tails:
-        print(f"\n[Фаза 3] tail={tail_name}, шум на conv1 (σ={noise_sigma})")
-        
-        model_C = TileResNet(num_classes=10, noise_sigma=noise_sigma,
-                             tap='l4', noise_tap='conv1', dual_bn=True).to(device)
-        model_C.load_state_dict(base_state)                       # веса базового классификатора
-        model_C.simkin_head.load_state_dict(simkin_head_w)        # Симкин-голова из фазы 1
 
-        frozen = frozen_pairs(model_C, TAILS[tail_name])          # soft-freeze фронт-энда (±δ)
+def ckpt_name(cfg, tail, noise_sigma, lam, seed):
+    return Path(cfg.out_dir) / f"{cfg.dataset}_LateSimkin_{tail}_ns{noise_sigma:g}_lam{lam:g}_s{seed}.pt"
 
-        train_classifier(model_C, tr_loader, te_loader, ft_epochs, lr, device,
-                         multitask=True, simk_loader=simk_loader, lam=lam,
-                         frozen=frozen, delta=soft_delta)
 
-        torch.save(model_C.state_dict(), f"models/ResNetLateSimkin_{tail_name}_best.pt") 
-        clean = eval_clean(model_C, te_loader, device)                                   
-        results[tail_name] = clean
-        print(f"  [{tail_name}] clean={clean:.4f}  (robust — отдельным параллельным прогоном)")
-        del model_C
-        torch.cuda.empty_cache()
+def train_phase3(cfg, base_state, head_state, simk_loader, tr_loader, te_loader, device,
+                 tail, noise_sigma, lam, seed):
+    """Фаза 3: мультитаск-дообучение хвоста, шум на conv1. Возвращает (model, history, ckpt_path)."""
+    print(f"\n[Фаза 3] tail={tail}, шум на conv1 σ={noise_sigma}, λ={lam}, seed={seed}")
+    torch.manual_seed(seed)
+    model_C = new_model(noise_sigma=noise_sigma).to(device)
+    model_C.load_state_dict(base_state)                       # веса базового классификатора
+    model_C.simkin_head.load_state_dict(head_state)           # Симкин-голова из фазы 1
+    frozen = frozen_pairs(model_C, TAILS[tail])               # soft-freeze фронт-энда (±δ)
+    hist = train_classifier(model_C, tr_loader, te_loader, cfg.ft_epochs, cfg.lr, device,
+                            multitask=lam > 0, simk_loader=simk_loader, lam=lam,
+                            frozen=frozen, delta=cfg.soft_delta, amp=cfg.amp)
+    path = ckpt_name(cfg, tail, noise_sigma, lam, seed)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model_C.state_dict(), path)
+    return model_C, hist, path
 
-    print("\n Итог: чекпойнты сохранены, robust считать отдельно ")
-    for t, c in results.items():
-        print(f"{t:10s} clean={c:.4f}")
+
+def load_cfg(argv=None):
+    """late_simkin (база) <- пресет (напр. exp224) <- CLI key=value."""
+    root = OmegaConf.load("params.yaml")
+    cli = OmegaConf.from_cli(list(argv if argv is not None else sys.argv[1:]))
+    cfg = OmegaConf.merge(root.late_simkin)
+    preset = cli.pop("preset", None) if "preset" in cli else None
+    if preset:
+        cfg = OmegaConf.merge(cfg, root[preset].get("late_simkin", {}))
+    cfg = OmegaConf.merge(cfg, cli)
+    if cfg.get("render_sigma") is None:
+        cfg.render_sigma = root.noise.sigma
+    return cfg
+
+
+def run(cfg):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}\n{OmegaConf.to_yaml(cfg)}")
+    simk_loader, tr_loader, te_loader = build_loaders(cfg)
+    sigmas = list(cfg.noise_sigmas) if cfg.get("noise_sigmas") else [cfg.noise_sigma]
+    results = []
+    for seed in cfg.seeds:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        head = get_phase1_head(cfg, simk_loader, device, seed)
+        base = get_phase2_base(cfg, tr_loader, te_loader, device, seed)
+        for tail in cfg.tails:
+            for ns in sigmas:
+                if ckpt_name(cfg, tail, ns, cfg.lam, seed).exists() and not cfg.get("overwrite", False):
+                    print(f"skip (есть чекпойнт): tail={tail} σ={ns} seed={seed}")
+                    continue
+                m, hist, path = train_phase3(cfg, base, head, simk_loader, tr_loader, te_loader,
+                                             device, tail, ns, cfg.lam, seed)
+                results.append(dict(seed=seed, tail=tail, noise_sigma=ns, clean=hist[-1]["test_acc"],
+                                    ckpt=str(path)))
+                del m
+                torch.cuda.empty_cache()
+    print("\nИтог (robust считать scripts/bench.py):")
+    for r in results:
+        print(r)
     return results
 
 
-def main():
-    cfg = OmegaConf.load("params.yaml")
-    p = cfg.train_tile
-    run(tile_dir=p.tile_dir, tile_csv=p.tile_csv, sigma=cfg.noise.sigma,
-        pretrain_epochs=p.pretrain_epochs, pretrain_lr=p.pretrain_lr,
-        cls_epochs=p.epochs, ft_epochs=p.epochs, lr=p.lr, noise_sigma=p.noise_sigma,
-        soft_delta=p.soft_delta,
-        batch_size=p.batch_size, num_workers=p.num_workers,
-        eps=p.eps_255 / 255, pgd_steps=p.pgd_steps, eot_k=p.eot_k, seed=p.seed)
-
-
 if __name__ == "__main__":
-    main()
+    run(load_cfg())

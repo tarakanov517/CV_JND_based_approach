@@ -3,6 +3,7 @@ import os
 import random
 from pathlib import Path
 
+import torch
 import cv2
 import numpy as np
 import rootutils
@@ -94,6 +95,8 @@ def process_one(task: dict, out_dir: Path) -> dict:
 
     lmap, ix, iy = make_tile_lmap(L_a, L_N, L_obj, phi_a, epsilon, slope)
     canvas_clean = luminance_map_to_canvas(lmap, cfg)              # до шума -- для детектора
+    # noise = np.random.randint(-25, 25, canvas_clean.shape, dtype=np.int16)
+    # canvas_noise = np.clip(canvas_clean.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
     sample_cfg = OmegaConf.merge(cfg, {"luminance": {"outer": L_N, "inner": L_obj}})
 

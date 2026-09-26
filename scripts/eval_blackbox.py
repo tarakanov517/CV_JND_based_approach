@@ -33,10 +33,17 @@ class Norm01(nn.Module):
 _ARCHS = {"tile": TileResNet, "siamese": CustomResNet}
 
 
-def load_model(ckpt, noise_sigma, device, arch="tile", tap="l1", noise_tap=None, dual_bn=False):
+def load_model(ckpt, noise_sigma, device, arch="tile", tap="l1", noise_tap=None, dual_bn=False,
+               num_classes=10, **vone_kw):
+    """arch: tile | siamese | vone. Возвращает Norm01-обёртку (вход в [0,1])."""
+    if arch == "vone":
+        from src.vone_model import load_vone_classifier
+        m = load_vone_classifier(ckpt, device, noise_on=noise_sigma != 0, **vone_kw)
+        return Norm01(m, device).to(device).eval()
     kw = {"tap": tap, "noise_tap": noise_tap, "dual_bn": dual_bn} if arch == "tile" else {}
-    m = _ARCHS[arch](num_classes=10, noise_sigma=noise_sigma, **kw).to(device)
-    m.load_state_dict(torch.load(ckpt, map_location=device))
+    m = _ARCHS[arch](num_classes=num_classes, noise_sigma=noise_sigma, **kw).to(device)
+    state = torch.load(ckpt, map_location=device)
+    m.load_state_dict(state.get("state_dict", state) if isinstance(state, dict) else state)
     m.eval()
     return Norm01(m, device).to(device).eval()
 
@@ -109,15 +116,20 @@ def acc_on(model01, batches, reps=1):
     return c / t
 
 
-def eot_pgd_acc(model01, loader, eps, device, steps=20, eot=10, reps=1):
+def eot_pgd_acc(model01, loader, eps, device, steps=20, eot=10, reps=1, amp=False, return_adv=False):
     """
     White-box EOT-PGD атака:
-      eot - число реализаций шума для усреднения .
+      eot - число реализаций шума для усреднения градиента (0/1 -> обычный PGD).
       reps  — усреднение предсказания на eval.
+      amp   — fp16-autocast форварда. Лосс домножается на 1024 перед grad: sign() инвариантен
+              к масштабу, а без этого fp16-градиенты по входу частично обнуляются
+              (ложное ослабление атаки = маскировка градиента на ровном месте).
     """
     model01.requires_grad_(False)      # атаке нужен градиент только по входу, будет быстрее backward
     alpha = eps * 2.5 / steps
+    use_amp = amp and torch.device(device).type == "cuda"
     c = t = 0
+    advs = []
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         x0 = x.clone()
@@ -126,14 +138,15 @@ def eot_pgd_acc(model01, loader, eps, device, steps=20, eot=10, reps=1):
             g = torch.zeros_like(x_adv)
             for _ in range(max(1, eot)):
                 xv = x_adv.detach().requires_grad_(True)
-                with torch.enable_grad():
-                    loss = F.cross_entropy(model01(xv), y)
-                g = g + torch.autograd.grad(loss, xv)[0]
-            g /= max(1, eot)
+                with torch.enable_grad(), torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+                    loss = F.cross_entropy(model01(xv).float(), y, reduction="sum")
+                g = g + torch.autograd.grad(loss * (1024.0 if use_amp else 1.0), xv)[0]
             x_adv = x_adv.detach() + alpha * g.sign()
             x_adv = torch.min(torch.max(x_adv, x0 - eps), x0 + eps).clamp(0, 1)
-        with torch.no_grad():
-            logits = sum(model01(x_adv) for _ in range(reps)) / reps
+        with torch.no_grad(), torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+            logits = sum(model01(x_adv).float() for _ in range(reps)) / reps
             c += (logits.argmax(1) == y).sum().item()
             t += y.size(0)
-    return c / t
+        if return_adv:
+            advs.append((x_adv.cpu(), y.cpu()))
+    return (c / t, advs) if return_adv else c / t
