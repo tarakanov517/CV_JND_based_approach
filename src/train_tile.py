@@ -32,22 +32,26 @@ test_tf = transforms.Compose([
 ])
 
 
-def pretrain_simkin(model, loader, epochs, lr, device):
+def pretrain_simkin(model, loader, epochs, lr, device, amp=False):
     fe_ids = model.frontend_param_ids()                  # фронт-энд до tap включительно
     params = ([p for p in model.parameters() if id(p) in fe_ids]
               + list(model.simkin_head.parameters()))
     opt = optim.AdamW(params, lr=lr, weight_decay=0.0)
     crit = nn.MSELoss()
+    use_amp = amp and device.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     for ep in range(1, epochs + 1):
         model.train()
         tot, n = 0.0, 0
         for x, y in tqdm(loader, desc=f"pretrain {ep}/{epochs}", leave=False):
             x, y = x.to(device), y.to(device)
             opt.zero_grad()
-            pred = model(x, mode='simk').squeeze(1)
-            loss = crit(pred, y)
-            loss.backward()
-            opt.step()
+            with torch.autocast(device.type, dtype=torch.float16, enabled=use_amp):
+                pred = model(x, mode='simk').squeeze(1)
+            loss = crit(pred.float(), y)                  # MSE в fp32
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
             tot += loss.item() * x.size(0)
             n += x.size(0)
         print(f"[pretrain {ep}/{epochs}] MSE(log₂ψ) = {tot / n:.4f}")
