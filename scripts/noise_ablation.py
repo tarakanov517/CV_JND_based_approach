@@ -204,10 +204,10 @@ def report(df, ab, out_csv):
 
     ls = agg[agg.config == "late_simkin"]
     ref = agg[agg.config == "baseline"].clean.mean()
-    ok = ls[ls.clean >= ref - ab.get("pick_clean_drop", 0.03)]
+    ok = ls[ls.clean >= ref - ab.get("pick_clean_drop", 0.15)]
     if len(ok):
         best = ok.loc[ok[f"eps{e0}"].idxmax()]
-        print(f"\nσ* (max eps{e0} при clean ≥ baseline-{ab.get('pick_clean_drop', 0.03)}): "
+        print(f"\nσ* (max eps{e0} при clean ≥ baseline-{ab.get('pick_clean_drop', 0.15)}): "
               f"σ={best.noise_sigma:g} clean={best.clean:.4f} eps{e0}={best[f'eps{e0}']:.4f}")
     try:
         import matplotlib
