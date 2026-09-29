@@ -19,10 +19,10 @@ from src.stimulus import add_overshoots, luminance_map_to_canvas
 from src.visibility_funcs import is_visible_8_1
 
 
-TILE_SIZE = 128      # 128         # масштаб эксперимента
+TILE_SIZE = 224      # 128         # масштаб эксперимента
 PHI_A_VALUES = [2, 4, 8, 16]        # [1, 2, 4, 8]   # размеры объекта
-PHI_V =  6             # 4               # ширина кольца выброса
-FIELD_SIZE = 64      # 19         # центральный квадрат L_N
+PHI_V =  7             # 4               # ширина кольца выброса
+FIELD_SIZE = 33      # 19         # центральный квадрат L_N
 
 EPSILON_VALUES = [0, 4, 16, 32]
 SLOPE_FORMS = ['sharp', 'hyperbolic', 'exponential', 'gaussian', 'triangle', 'cosine']
