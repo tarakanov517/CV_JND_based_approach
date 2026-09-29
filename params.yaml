@@ -1,5 +1,5 @@
 general:
-  output_folder: "output_solo_exp"
+  output_folder: "output_224"
   seed: 42
 
 display:
