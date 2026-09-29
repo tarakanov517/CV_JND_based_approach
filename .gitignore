@@ -4,3 +4,4 @@ data/
 venv/
 jnd.ipynb
 attack_results.json
+jnd_experiments/results/plots
