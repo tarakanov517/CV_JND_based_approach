@@ -13,6 +13,20 @@ def set_backbone_trainable(model, trainable):
         parameter.requires_grad = True
 
 
+def set_noise_scale(model, scale):
+    for module in model.modules():
+        if hasattr(module, "noise_scale"):
+            module.noise_scale = scale
+
+
+def get_noise_scale(schedule, phase, phase_epoch, warmup_epochs, ramp_epochs):
+    if schedule == "fixed":
+        return 1.0
+    if phase == "head" or phase_epoch <= warmup_epochs:
+        return 0.0
+    return min((phase_epoch - warmup_epochs) / max(ramp_epochs, 1), 1.0)
+
+
 def train_epoch(model, loader, optimizer, device):
     model.train()
     total_loss = 0.0
@@ -42,6 +56,9 @@ def fit(
     head_lr,
     full_lr,
     weight_decay,
+    noise_schedule,
+    noise_warmup_epochs,
+    noise_ramp_epochs,
 ):
     best_accuracy = -1.0
     best_state = None
@@ -61,8 +78,16 @@ def fit(
             weight_decay=weight_decay,
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
-        for _ in range(epochs):
+        for phase_epoch in range(1, epochs + 1):
             epoch_number += 1
+            noise_scale = get_noise_scale(
+                noise_schedule,
+                phase,
+                phase_epoch,
+                noise_warmup_epochs,
+                noise_ramp_epochs,
+            )
+            set_noise_scale(model, noise_scale)
             train_loss, train_accuracy = train_epoch(
                 model, train_loader, optimizer, device
             )
@@ -75,10 +100,12 @@ def fit(
                 "train_accuracy": train_accuracy,
                 "validation_loss": validation["loss"],
                 "validation_accuracy": validation["accuracy"],
+                "noise_scale": noise_scale,
             }
             history.append(row)
             print(
                 f"epoch={epoch_number} phase={phase} "
+                f"noise_scale={noise_scale:.3f} "
                 f"train_acc={train_accuracy:.4f} val_acc={validation['accuracy']:.4f}",
                 flush=True,
             )

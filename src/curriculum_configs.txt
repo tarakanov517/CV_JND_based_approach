@@ -1,0 +1,7 @@
+baseline|fixed|0.0|0.0|0.0
+axon_fixed_050|fixed|0.5|0.5|0.0
+axon_linear_050|linear|0.5|0.5|0.0
+dendrite_fixed_050|fixed|0.5|0.0|0.5
+dendrite_linear_050|linear|0.5|0.0|0.5
+axon_linear_100|linear|1.0|1.0|0.0
+dendrite_linear_100|linear|1.0|0.0|1.0

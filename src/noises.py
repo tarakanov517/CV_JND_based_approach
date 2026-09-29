@@ -7,6 +7,7 @@ class LateralInhibitionNoise(nn.Module):
     def __init__(self, sigma=0.0):
         super().__init__()
         self.sigma = float(sigma)
+        self.noise_scale = 1.0
         kernel = torch.tensor(
             [[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]],
             dtype=torch.float32,
@@ -23,7 +24,7 @@ class LateralInhibitionNoise(nn.Module):
         kernel = self.kernel.expand(channels, -1, -1, -1)
         correlated_noise = F.conv2d(white_noise, kernel, padding=1, groups=channels)
         noise_std = correlated_noise.std(unbiased=False).clamp_min(1e-8)
-        return inputs + self.sigma * correlated_noise / noise_std
+        return inputs + self.sigma * self.noise_scale * correlated_noise / noise_std
 
 
 class ContrastAdaptiveNoise(nn.Module):
@@ -31,13 +32,16 @@ class ContrastAdaptiveNoise(nn.Module):
         super().__init__()
         self.sigma_prop = float(sigma_prop)
         self.sigma_add = float(sigma_add)
+        self.noise_scale = 1.0
 
     def forward(self, inputs):
         if not self.training or (self.sigma_prop == 0 and self.sigma_add == 0):
             return inputs
         signal_magnitude = inputs.abs() + 1e-6
-        variance = (self.sigma_prop * signal_magnitude).square()
-        variance = variance + self.sigma_add**2
+        sigma_prop = self.sigma_prop * self.noise_scale
+        sigma_add = self.sigma_add * self.noise_scale
+        variance = (sigma_prop * signal_magnitude).square()
+        variance = variance + sigma_add**2
         return inputs + torch.randn_like(inputs) * variance.sqrt()
 
 
@@ -48,6 +52,7 @@ class PyramidalHeadNoise(nn.Module):
         self.sigma = float(sigma)
         self.gamma = float(gamma)
         self.b = float(b)
+        self.noise_scale = 1.0
 
     def forward(self, inputs):
         if not self.enabled:
@@ -56,7 +61,7 @@ class PyramidalHeadNoise(nn.Module):
         inhibition = signal.mean(dim=1, keepdim=True)
         outputs = inputs.sign() * signal / (self.b + inhibition)
         if self.training and self.sigma != 0:
-            outputs = outputs + torch.randn_like(outputs) * self.sigma
+            outputs = outputs + torch.randn_like(outputs) * self.sigma * self.noise_scale
         return outputs
 
 
@@ -65,17 +70,27 @@ class NoisyConv2d(nn.Conv2d):
         super().__init__(*args, **kwargs)
         self.sigma_axon = float(sigma_axon)
         self.sigma_dendrite = float(sigma_dendrite)
+        self.noise_scale = 1.0
 
     def forward(self, inputs):
         weight = self.weight
         if self.training:
             if self.sigma_axon != 0:
                 weight = weight * (
-                    1.0 + self.sigma_axon * torch.randn_like(weight)
+                    1.0
+                    + self.sigma_axon
+                    * self.noise_scale
+                    * torch.randn_like(weight)
                 )
             if self.sigma_dendrite != 0:
                 scale = self.weight.detach().std(unbiased=False).clamp_min(1e-8)
-                weight = weight + self.sigma_dendrite * scale * torch.randn_like(weight)
+                weight = (
+                    weight
+                    + self.sigma_dendrite
+                    * self.noise_scale
+                    * scale
+                    * torch.randn_like(weight)
+                )
         return F.conv2d(
             inputs,
             weight,

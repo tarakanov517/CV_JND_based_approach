@@ -40,6 +40,11 @@ def parse_args():
     parser.add_argument("--b", type=float, default=1.0)
     parser.add_argument("--sigma-axon", type=float, default=0.0)
     parser.add_argument("--sigma-dendrite", type=float, default=0.0)
+    parser.add_argument(
+        "--noise-schedule", choices=("fixed", "linear"), default="fixed"
+    )
+    parser.add_argument("--noise-warmup-epochs", type=int, default=0)
+    parser.add_argument("--noise-ramp-epochs", type=int, default=1)
     parser.add_argument("--attack-epsilon", type=float, default=8 / 255)
     parser.add_argument("--pgd-alpha", type=float, default=2 / 255)
     parser.add_argument("--pgd-steps", type=int, default=10)
@@ -101,6 +106,9 @@ def main():
         args.head_lr,
         args.full_lr,
         args.weight_decay,
+        args.noise_schedule,
+        args.noise_warmup_epochs,
+        args.noise_ramp_epochs,
     )
     torch.save(model.state_dict(), output_dir / "model.pt")
     write_history(output_dir / "history.csv", history)
@@ -133,6 +141,9 @@ def main():
         "b": args.b,
         "sigma_axon": args.sigma_axon,
         "sigma_dendrite": args.sigma_dendrite,
+        "noise_schedule": args.noise_schedule,
+        "noise_warmup_epochs": args.noise_warmup_epochs,
+        "noise_ramp_epochs": args.noise_ramp_epochs,
         "attack_epsilon": args.attack_epsilon,
         "pgd_alpha": args.pgd_alpha,
         "pgd_steps": args.pgd_steps,
