@@ -139,7 +139,8 @@ def sec_corruptions(cfg, models, device, out):
             need = [spec for spec in models if not T.has(model=spec.name, corruption=c, severity=s)]
             if not need:
                 continue
-            cache = Path(cfg.cache_dir) / "corrupt" / f"{cfg.dataset}_n{len(labels)}" / f"{c}_s{s}.npy"
+            use_cache = bool(C.get("cache", False))
+            cache = Path(cfg.cache_dir) / "corrupt" / f"{cfg.dataset}_n{len(labels)}" / f"{c}_s{s}.npy" if use_cache else None
             imgs_c = corrupted_images(images, c, s, cache, n_jobs=C.n_jobs)
             ld = DataLoader(UInt8Dataset(imgs_c, labels), batch_size=256, num_workers=0)
             for spec in need:
