@@ -63,16 +63,22 @@ def _corrupt_chunk(images, idx0, corruption, severity):
     return out
 
 
-def corrupted_images(images: np.ndarray, corruption: str, severity: int, cache_path: Path,
+def corrupted_images(images: np.ndarray, corruption: str, severity: int,
+                     cache_path: Path | None = None,
                      n_jobs: int = -1, chunk: int = 64) -> np.ndarray:
-    """images: (N,H,W,3) uint8. Результат кешируется в cache_path (.npy)."""
-    cache_path = Path(cache_path)
-    if cache_path.exists():
-        return np.load(cache_path)
+    """images: (N,H,W,3) uint8. Если cache_path задан — кешируется в .npy."""
+    if cache_path is not None:
+        cache_path = Path(cache_path)
+        if cache_path.exists():
+            return np.load(cache_path)
+
     parts = Parallel(n_jobs=n_jobs)(
         delayed(_corrupt_chunk)(images[i:i + chunk], i, corruption, severity)
         for i in range(0, len(images), chunk))
     out = np.concatenate(parts)
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(cache_path, out)
+
+    if cache_path is not None:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cache_path, out)
+
     return out
