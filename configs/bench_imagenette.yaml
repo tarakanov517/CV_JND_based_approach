@@ -19,6 +19,7 @@ whitebox:
   batch_size: 64
 
 corruptions:
+  cache: false
   names: all # all = natural+digital+noise (9 шт.) или список
   severities: [1, 2, 3, 4, 5]
   n: null # весь тест
