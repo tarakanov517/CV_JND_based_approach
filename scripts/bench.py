@@ -1,10 +1,7 @@
-"""Задача 3. Единый бенчмарк: baseline vs SimkinNet (late-simkin) vs VOneNet на любом датасете/разрешении.
-
+"""
 Секции (--only a,b,...; по умолчанию все):
     clean       -- clean accuracy на всём тесте (для шумных моделей: 1 проход, как раньше, + голосование reps)
     whitebox    -- EOT-PGD (k для стохастических, обычный PGD для детерминированных), eps-список
-    eot_sweep   -- robust vs k (10/20/40) для стохастических: плато => нет маскировки градиента
-    blackbox    -- Square (score-based) + Transfer (PGD на суррогате, по умолчанию baseline)
     corruptions -- ImageNet-C протокол (natural / digital / noise), retention = acc/clean
 Всё пишется в {out_dir}/{section}.csv (резюмируемо: посчитанные ключи пропускаются) + summary.md.
 
@@ -28,7 +25,7 @@ from src.cls_data import get_eval_loader01, load_test_uint8, UInt8Dataset
 from src.corruptions import ALL, GROUPS, corrupted_images, group_of
 from scripts.eval_blackbox import load_model, eot_pgd_acc, square_acc, craft_transfer, acc_on
 
-SECTIONS = ["clean", "whitebox", "eot_sweep", "blackbox", "corruptions"]
+SECTIONS = ["clean", "whitebox", "corruptions"]
 
 
 # ───────────────────────────── models ─────────────────────────────
@@ -114,48 +111,6 @@ def sec_whitebox(cfg, models, device, out):
         del m
     return T.df()
 
-
-def sec_eot_sweep(cfg, models, device, out):
-    S = cfg.eot_sweep
-    T = Table(out / "eot_sweep.csv", ["model", "k"])
-    ld = get_eval_loader01(cfg.dataset, S.n, cfg.seed_eval, cfg.whitebox.batch_size, cfg.num_workers,
-                           cfg.data_root)
-    for spec in [s for s in models if is_stochastic(s)]:
-        m = None
-        for k in S.ks:
-            if T.has(model=spec.name, k=k):
-                continue
-            m = m if m is not None else build(spec, device)
-            T.add(model=spec.name, k=k, eps=S.eps_255,
-                  robust=eot_pgd_acc(m, ld, S.eps_255 / 255, device, cfg.whitebox.steps, k, amp=cfg.amp))
-        del m
-    return T.df()
-
-
-def sec_blackbox(cfg, models, device, out):
-    B = cfg.blackbox
-    T = Table(out / "blackbox.csv", ["model", "eps"])
-    ld = get_eval_loader01(cfg.dataset, B.n, cfg.seed_eval, B.batch_size, cfg.num_workers, cfg.data_root)
-    sur_spec = next(s for s in models if s.name == B.surrogate)
-    sur = build(sur_spec, device)
-    todo = [(s, e) for s in models for e in B.eps_255 if not T.has(model=s.name, eps=e)]
-    adv = {e: craft_transfer(sur, ld, e / 255, device, steps=B.transfer_steps)
-           for e in sorted({e for _, e in todo})}
-    del sur
-    for spec in models:
-        m = None
-        for e in B.eps_255:
-            if T.has(model=spec.name, eps=e):
-                continue
-            m = m if m is not None else build(spec, device)
-            tr = acc_on(m, adv[e])
-            sq = square_acc(m, ld, e / 255, device, n_queries=B.square_queries) if B.square_queries else np.nan
-            T.add(model=spec.name, eps=e, transfer=tr, square=sq, surrogate=B.surrogate,
-                  self_transfer=spec.name == B.surrogate, n=len(ld.dataset))
-        del m
-    return T.df()
-
-
 def sec_corruptions(cfg, models, device, out):
     C = cfg.corruptions
     names = ALL if C.names == "all" else list(C.names)
@@ -207,14 +162,6 @@ def summarize(out: Path, order):
             lines += ["## White-box (EOT-PGD / PGD)", fmt(order_idx(p)), ""]
         if (out / "clean.csv").exists():
             lines += ["## Clean (весь тест)", fmt(order_idx(pd.read_csv(out / "clean.csv").set_index("model"))), ""]
-        if (out / "eot_sweep.csv").exists():
-            e = pd.read_csv(out / "eot_sweep.csv").pivot_table(index="model", columns="k", values="robust")
-            lines += ["## EOT k-sweep", fmt(e), ""]
-        if (out / "blackbox.csv").exists():
-            b = pd.read_csv(out / "blackbox.csv").pivot_table(index="model", columns="eps",
-                                                              values=["square", "transfer"])
-            b.columns = [f"{a}@{e}/255" for a, e in b.columns]
-            lines += ["## Black-box", fmt(order_idx(b)), ""]
         if (out / "corruptions.csv").exists():
             c = pd.read_csv(out / "corruptions.csv")
             clean = c[c.corruption == "clean"].set_index("model").acc
