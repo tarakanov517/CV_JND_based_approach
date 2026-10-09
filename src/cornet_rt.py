@@ -91,13 +91,18 @@ class CORnetRT(nn.Module):
         b=1.0,
         sigma_axon=0.0,
         sigma_dendrite=0.0,
+        parameter_noise_block="all",
     ):
         super().__init__()
         self.times = times
-        parameter_noise = {
-            "sigma_axon": sigma_axon,
-            "sigma_dendrite": sigma_dendrite,
-        }
+
+        def parameter_noise(block):
+            enabled = parameter_noise_block == "all" or parameter_noise_block == block
+            return {
+                "sigma_axon": sigma_axon if enabled else 0.0,
+                "sigma_dendrite": sigma_dendrite if enabled else 0.0,
+            }
+
         self.V1 = CORblockRT(
             3,
             64,
@@ -105,7 +110,7 @@ class CORnetRT(nn.Module):
             stride=4,
             out_shape=56,
             activation_noise=LateralInhibitionNoise(sigma_lateral),
-            **parameter_noise,
+            **parameter_noise("V1"),
         )
         self.V2 = CORblockRT(
             64,
@@ -113,10 +118,14 @@ class CORnetRT(nn.Module):
             stride=2,
             out_shape=28,
             activation_noise=ContrastAdaptiveNoise(sigma_prop, sigma_add),
-            **parameter_noise,
+            **parameter_noise("V2"),
         )
-        self.V4 = CORblockRT(128, 256, stride=2, out_shape=14, **parameter_noise)
-        self.IT = CORblockRT(256, 512, stride=2, out_shape=7, **parameter_noise)
+        self.V4 = CORblockRT(
+            128, 256, stride=2, out_shape=14, **parameter_noise("V4")
+        )
+        self.IT = CORblockRT(
+            256, 512, stride=2, out_shape=7, **parameter_noise("IT")
+        )
         self.decoder = nn.Sequential(
             OrderedDict(
                 [

@@ -1,0 +1,11 @@
+baseline|baseline|none|0.0|0.0
+axon_v1|axon|V1|0.5|0.0
+axon_v2|axon|V2|0.5|0.0
+axon_v4|axon|V4|0.5|0.0
+axon_it|axon|IT|0.5|0.0
+axon_all|axon|all|0.5|0.0
+dendrite_v1|dendrite|V1|0.0|0.5
+dendrite_v2|dendrite|V2|0.0|0.5
+dendrite_v4|dendrite|V4|0.0|0.5
+dendrite_it|dendrite|IT|0.0|0.5
+dendrite_all|dendrite|all|0.0|0.5
