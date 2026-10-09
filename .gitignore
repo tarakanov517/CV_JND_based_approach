@@ -5,4 +5,6 @@
 .venv/
 .DS_Store
 __pycache__
-tmp/
+output_solo_exp/
+models/
+notebooks/test.ipynb

@@ -4,37 +4,24 @@ dataset: stl10
 data_root: data
 cache_dir: cache
 out_dir: output/bench_stl10
-seed_eval: 0                 # сид случайной подвыборки теста (одинаковый для всех моделей)
+seed_eval: 0 # сид случайной подвыборки теста (одинаковый для всех моделей)
 num_workers: 4
-amp: true                    # fp16 форвард в атаках (лосс масштабируется, см. eot_pgd_acc)
+amp: true # fp16 форвард в атаках (лосс масштабируется, см. eot_pgd_acc)
 
 clean:
-  vote_reps: 10              # доп. колонка: голосование по 10 реализациям шума
+  vote_reps: 10 # доп. колонка: голосование по 10 реализациям шума
 
 whitebox:
-  eps_255: [1, 2, 4, 8]
+  eps_255: [2, 4, 8]
   steps: 20
   eot_k: 20
-  n: null                    # весь тест 8000, как в отчёте
+  n: null # весь тест 8000, как в отчёте
   batch_size: 64
-
-eot_sweep:
-  ks: [10, 20, 40]
-  eps_255: 2
-  n: 500
-
-blackbox:
-  eps_255: [2, 4]
-  n: 500
-  batch_size: 64
-  square_queries: 2000       # 0 -> пропустить Square
-  transfer_steps: 20
-  surrogate: baseline        # имя модели-суррогата из списка ниже
 
 corruptions:
-  names: all                 # all = natural+digital+noise (9 шт.) или список
+  names: all # all = natural+digital+noise (9 шт.) или список
   severities: [1, 2, 3, 4, 5]
-  n: null                    # весь тест
+  n: null # весь тест
   reps: 1
   n_jobs: -1
 
@@ -48,12 +35,12 @@ models:
     dual_bn: true
   - name: simkin
     arch: tile
-    ckpt: models/stl10_LateSimkin_l4_ns0.5_lam0.2_s42.pt   # <- σ* из noise-ablation
+    ckpt: models/stl10_LateSimkin_l4_ns0.5_lam0.2_s42.pt # <- σ* из noise-ablation
     noise_sigma: 0.5
     tap: l4
     noise_tap: conv1
     dual_bn: true
-  - name: simkin_noise_only             # контроль «только шум» (λ=0), тот же σ
+  - name: simkin_noise_only # контроль «только шум» (λ=0), тот же σ
     enabled: false
     arch: tile
     ckpt: models/stl10_LateSimkin_l4_ns0.5_lam0_s42.pt
