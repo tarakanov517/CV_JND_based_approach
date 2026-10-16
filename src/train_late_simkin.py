@@ -130,10 +130,6 @@ def _cache_path(cfg, what, seed):
     return Path(cfg.cache_dir) / f"{cfg.dataset}_{what}_s{seed}.pt"
 
 
-def new_model(noise_sigma=0.0, num_classes=10):
-    return TileResNet(num_classes=num_classes, noise_sigma=noise_sigma, **MODEL_KW)
-
-
 def get_phase1_head(cfg, simk_loader, device, seed):
     """Фаза 1: Симкин-претрейн, голова на l4. Возвращает state_dict головы (кешируется)."""
     path = _cache_path(cfg, "simkin_head_l4", seed)
