@@ -1,0 +1,33 @@
+# Simkin Poisson на оси σ_eff. Положи в configs/eval_sigma_eff.yaml.
+# additive (σ=3.0) и baseline НЕ гоняем повторно — их числа уже посчитаны,
+# additive-точка ложится на ось при σ_eff=3.0 бесплатно (std(randn*σ)=σ).
+dataset: imagenette # imagenette | imagewoof | stl10
+data_root: data
+cache_dir: cache
+out_dir: output/sigma_eff
+
+n: 1000 # подвыборка теста (на ней clean/robust/retention)
+seed_eval: 0
+batch_size: 64
+num_workers: 4
+amp: true
+
+eps_255: [2, 4] # Linf-бюджеты для EOT-PGD
+steps: 20 # шагов PGD
+eot_k: 10 # реализаций шума на градиент
+vote_reps: 8 # голосование на eval
+sigma_batches: 3 # по скольки чистым батчам усреднять σ_eff
+
+severities: [1, 2, 3, 4, 5] # natural-коррапшены усредняются по severity
+
+# Только новые Poisson-модели. knob (noise_sigma) подбирается так, чтобы sigma_eff
+# лёг рядом с additive σ=3.0 (матч-точка), либо даёшь серию knob -> retention-vs-σ_eff.
+# ВАЖНО: Simkin-ckpt хранит только state_dict, без arch -> noise_type/scale/level задаём тут.
+models:
+  - name: poisson_a # опция B: одна ручка σ при scale=1, level=0
+    ckpt: models/imagenette_LateSimkin_l4_pois_a_s42.pt
+    tap: l4
+    noise_tap: conv1
+    dual_bn: true
+    noise_sigma: 1.0 # ← knob (подбирается под нужный σ_eff)
+    noise_type: neuronal
