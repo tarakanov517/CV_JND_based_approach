@@ -78,6 +78,21 @@ def accuracy(model01, loader, device, reps=1, amp=False):
 
 # ───────────────────────────── sections ─────────────────────────────
 
+@torch.no_grad()
+def measure_sigma_eff(model, xb, device, poisson: bool, eps=1e-5):
+    model.eval()
+    mod = model._stages[model._noise_idx][1]        # точка хука
+    cap = {}
+    h = mod.register_forward_hook(lambda m, i, o: cap.__setitem__('x', o.detach()))
+    model(xb.to(device), mode='clas')               # прогон, чтобы хук поймал активацию
+    h.remove()
+    x = cap['x']                                     # чистая активация на noise_tap
+    s = model.noise_sigma
+    inj = (torch.randn_like(x) * torch.sqrt(F.relu(x) + eps) * s) if poisson \
+          else (torch.randn_like(x) * s)             # ровно та инъекция, что делает forward
+    return inj.std().item()
+
+
 def sec_clean(cfg, models, device, out):
     T = Table(out / "clean.csv", ["model"])
     ld = get_eval_loader01(cfg.dataset, None, 0, 256, cfg.num_workers, cfg.data_root)

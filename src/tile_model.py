@@ -2,24 +2,25 @@ import torch
 import torch.nn as nn
 import rootutils
 from torchvision import models
-
+from typing import Literal
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
 from src.model import DualBN, convert_bn_to_dual   # раздельные BN для clas/simk
 
+EPS = 1e-5
 _TAPS = ['conv1', 'stem', 'l1.0', 'l1.1', 'l1', 'l2', 'l3', 'l4']
 _CH = {'conv1': 64, 'stem': 64, 'l1.0': 256, 'l1.1': 256, 'l1': 256,
        'l2': 512, 'l3': 1024, 'l4': 2048}
 
-
 class TileResNet(nn.Module):
 
     def __init__(self, num_classes: int = 10, noise_sigma: float = 0.0, tap: str = 'l1',
-                 noise_tap: str = None, dual_bn: bool = False):
+                 noise_tap: str = None, noise_type: Literal['neuronal', 'gaussian', None] = None, dual_bn: bool = False):
         super().__init__()
         self.noise_sigma = noise_sigma
         self.tap = tap                       # ветвление Симкин-головы
         self.noise_tap = noise_tap or tap    # место впрыскивания шума
+        self.noise_type = noise_type
         self.dual_bn = dual_bn
         r = models.resnet50(weights="IMAGENET1K_V1")
 
@@ -79,5 +80,9 @@ class TileResNet(nn.Module):
         for i, (_, mod) in enumerate(self._stages):       # шум впрыскивается на noise_tap
             x = mod(x)
             if i == self._noise_idx and self.noise_sigma > 0:
-                x = x + torch.randn_like(x) * self.noise_sigma
+                if self.noise_type == 'gaussian':
+                    x = x + torch.randn_like(x) * self.noise_sigma
+                elif self.noise_type == 'neuronal':
+                    x = x + torch.randn_like(x) * (nn.functional.relu(x) + EPS) * self.noise_sigma
+                
         return self.class_head(self.class_pool(x).flatten(1))
