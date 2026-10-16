@@ -172,24 +172,36 @@ def get_phase2_base(cfg, tr_loader, te_loader, device, seed):
     torch.cuda.empty_cache()
     return state
 
+def new_model(noise_sigma=0.0, num_classes=10, noise_type="additive",
+              noise_scale=0.35, noise_level=0.07):
+    extra = {} if noise_type == "additive" else dict(
+        noise_type=noise_type, noise_scale=noise_scale, noise_level=noise_level)
+    return TileResNet(num_classes=num_classes, noise_sigma=noise_sigma, **extra, **MODEL_KW)
 
-def ckpt_name(cfg, tail, noise_sigma, lam, seed):
-    return Path(cfg.out_dir) / f"{cfg.dataset}_LateSimkin_{tail}_ns{noise_sigma:g}_lam{lam:g}_s{seed}.pt"
+def ckpt_name(cfg, tail, knob, lam, seed):
+    nt = cfg.get("noise_type", "additive")
+    tag = f"ns{knob:g}" if nt == "additive" else f"poisSc{knob:g}"
+    return Path(cfg.out_dir) / f"{cfg.dataset}_LateSimkin_{tail}_{tag}_lam{lam:g}_s{seed}.pt"
 
 
 def train_phase3(cfg, base_state, head_state, simk_loader, tr_loader, te_loader, device,
-                 tail, noise_sigma, lam, seed):
-    """Фаза 3: мультитаск-дообучение хвоста, шум на conv1. Возвращает (model, history, ckpt_path)."""
-    print(f"\n[Фаза 3] tail={tail}, шум на conv1 σ={noise_sigma}, λ={lam}, seed={seed}")
+                 tail, knob, lam, seed):
+    nt = cfg.get("noise_type", "additive")
+    if nt == "additive":
+        print(f"\n[Фаза 3] tail={tail}, additive шум на conv1 σ={knob}, λ={lam}, seed={seed}")
+        model_C = new_model(noise_sigma=knob).to(device)
+    else:
+        lvl = cfg.get("noise_level", 0.07)
+        print(f"\n[Фаза 3] tail={tail}, neuronal шум scale={knob} level={lvl}, λ={lam}, seed={seed}")
+        model_C = new_model(noise_type="neuronal", noise_scale=knob, noise_level=lvl).to(device)
     torch.manual_seed(seed)
-    model_C = new_model(noise_sigma=noise_sigma).to(device)
-    model_C.load_state_dict(base_state)                       # веса базового классификатора
-    model_C.simkin_head.load_state_dict(head_state)           # Симкин-голова из фазы 1
-    frozen = frozen_pairs(model_C, TAILS[tail])               # soft-freeze фронт-энда (±δ)
+    model_C.load_state_dict(base_state)
+    model_C.simkin_head.load_state_dict(head_state)
+    frozen = frozen_pairs(model_C, TAILS[tail])
     hist = train_classifier(model_C, tr_loader, te_loader, cfg.ft_epochs, cfg.lr, device,
                             multitask=lam > 0, simk_loader=simk_loader, lam=lam,
                             frozen=frozen, delta=cfg.soft_delta, amp=cfg.amp)
-    path = ckpt_name(cfg, tail, noise_sigma, lam, seed)
+    path = ckpt_name(cfg, tail, knob, lam, seed)
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model_C.state_dict(), path)
     return model_C, hist, path
@@ -213,7 +225,11 @@ def run(cfg):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}\n{OmegaConf.to_yaml(cfg)}")
     simk_loader, tr_loader, te_loader = build_loaders(cfg)
-    sigmas = list(cfg.noise_sigmas) if cfg.get("noise_sigmas") else [cfg.noise_sigma]
+    nt = cfg.get("noise_type", "additive")
+    if nt == "additive":
+        knobs = list(cfg.noise_sigmas) if cfg.get("noise_sigmas") else [cfg.noise_sigma]
+    else:
+        knobs = list(cfg.noise_scales) if cfg.get("noise_scales") else [cfg.get("noise_scale", 0.35)]
     results = []
     for seed in cfg.seeds:
         torch.manual_seed(seed)
@@ -221,17 +237,17 @@ def run(cfg):
         head = get_phase1_head(cfg, simk_loader, device, seed)
         base = get_phase2_base(cfg, tr_loader, te_loader, device, seed)
         for tail in cfg.tails:
-            for ns in sigmas:
-                if ckpt_name(cfg, tail, ns, cfg.lam, seed).exists() and not cfg.get("overwrite", False):
-                    print(f"skip (есть чекпойнт): tail={tail} σ={ns} seed={seed}")
+            for knob in knobs:
+                if ckpt_name(cfg, tail, knob, cfg.lam, seed).exists() and not cfg.get("overwrite", False):
+                    print(f"skip (есть чекпойнт): tail={tail} knob={knob} seed={seed}")
                     continue
                 m, hist, path = train_phase3(cfg, base, head, simk_loader, tr_loader, te_loader,
-                                             device, tail, ns, cfg.lam, seed)
-                results.append(dict(seed=seed, tail=tail, noise_sigma=ns, clean=hist[-1]["test_acc"],
-                                    ckpt=str(path)))
+                                             device, tail, knob, cfg.lam, seed)
+                results.append(dict(seed=seed, tail=tail, noise_type=nt, knob=knob,
+                                    clean=hist[-1]["test_acc"], ckpt=str(path)))
                 del m
                 torch.cuda.empty_cache()
-    print("\nИтог (robust считать scripts/bench.py):")
+    print("\nИтог (robust считать eval-скриптом):")
     for r in results:
         print(r)
     return results

@@ -86,12 +86,12 @@ class TileResNet(nn.Module):
 
         for i, (_, mod) in enumerate(self._stages):       # шум впрыскивается на noise_tap
             x = mod(x)
-            if i == self._noise_idx and self.noise_sigma > 0:
-                if self.noise_type == 'gaussian':
-                    x = x + torch.randn_like(x) * self.noise_sigma
-                elif self.noise_type == 'neuronal':
+            if i == self._noise_idx:
+                if self.noise_type == 'neuronal':         # Poisson≈Gauss, std∝sqrt(signal); НЕ зависит от noise_sigma
                     u = self.noise_scale * x + self.noise_level
                     u = u + torch.randn_like(u) * torch.sqrt(nn.functional.relu(u) + EPS)
                     x = (u - self.noise_level) / self.noise_scale
-                
+                elif self.noise_sigma > 0:                # additive fixed σ (noise_type None или 'gaussian')
+                    x = x + torch.randn_like(x) * self.noise_sigma
         return self.class_head(self.class_pool(x).flatten(1))
+                
