@@ -26,7 +26,7 @@ severities: [1, 2, 3, 4, 5] # natural-коррапшены усредняютс�
 # поэтому noise_type/scale/level задаём тут.
 models:
   - name: pois_sc0.70
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.70_s42.pt
+    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.7_lam0.2_s42.pt
     tap: l4
     noise_tap: conv1
     dual_bn: true
@@ -35,7 +35,7 @@ models:
     noise_level: 0.07
 
   - name: pois_sc0.35
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.35_s42.pt
+    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.35_lam0.2_s42.pt
     tap: l4
     noise_tap: conv1
     dual_bn: true
@@ -44,7 +44,7 @@ models:
     noise_level: 0.07
 
   - name: pois_sc0.20
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.20_s42.pt
+    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt
     tap: l4
     noise_tap: conv1
     dual_bn: true
@@ -53,7 +53,7 @@ models:
     noise_level: 0.07
 
   - name: pois_sc0.10
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.10_s42.pt
+    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt
     tap: l4
     noise_tap: conv1
     dual_bn: true
