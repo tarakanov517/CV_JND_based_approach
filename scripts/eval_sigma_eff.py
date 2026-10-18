@@ -1,3 +1,17 @@
+"""Сравнение Simkin (tile) vs VOne на ОБЩЕЙ оси σ_eff.
+
+Идея: закон шума один и тот же (Poisson≈Gauss, std∝√сигнал), «количество» шума держим
+сопоставимым -> ось X это ИЗМЕРЕННЫЙ σ_eff = std инъекции в активации на чистых данных,
+а не ручка модели. Для VOne пункт B: под каждый noise_scale модель ДООБУЧЕНА (train_vone),
+так что каждая точка обучена-под-свой-шум, как у Simkin — сравнение честное.
+
+Для каждого чекпойнта: sigma_eff, sigma_rel, clean, robust@e (EOT-PGD/PGD), natural-retention.
+σ_eff меряется law-agnostic:
+    tile  -- разность (вход следующего модуля) − (выход noise-модуля);
+    vone  -- разность (выход vone_block с шумом) − (он же без шума).
+
+    python scripts/eval_sigma_eff.py configs/eval_sigma_eff.yaml
+"""
 import argparse
 from pathlib import Path
 
@@ -18,9 +32,15 @@ from scripts.eval_blackbox import Norm01, eot_pgd_acc
 NAT = GROUPS["natural"]           # contrast, brightness, fog -- на них виден SNR-коллапс
 
 
-# ───────────────────────────── build ─────────────────────────────
 
 def build(spec, num_classes, device):
+    """(core, Norm01-обёртка[0,1]). arch: 'tile' (Simkin) | 'vone'.
+    tile: kwargs TileResNet (tap/noise_tap/dual_bn/noise_sigma/noise_type/noise_scale/noise_level).
+    vone: noise_scale/level берутся из сохранённого в ckpt arch, в конфиге хватит name+ckpt+arch."""
+    if spec.get("arch", "tile") == "vone":
+        from src.vone_model import load_vone_classifier
+        core = load_vone_classifier(spec.ckpt, device, noise_on=True, num_classes=num_classes)
+        return core, Norm01(core, device).to(device).eval()
     kw = {k: spec[k] for k in ("tap", "noise_tap", "dual_bn", "noise_sigma",
                                "noise_type", "noise_scale", "noise_level") if k in spec}
     core = TileResNet(num_classes=num_classes, **kw).to(device)
@@ -30,11 +50,31 @@ def build(spec, num_classes, device):
     return core, Norm01(core, device).to(device).eval()
 
 
-# ───────────────────────────── σ_eff ─────────────────────────────
-
 @torch.no_grad()
-def measure_sigma_eff(core, wrapper, loader01, device, n_batches=3):
-    ni = core._noise_idx
+def measure_sigma_eff(core, wrapper, loader01, device, arch="tile", n_batches=3):
+    """std инъектированного шума (абс. и относительно активации), среднее по батчам."""
+    if arch == "vone":
+        vb = core.net.vone_block
+        buf = {}
+        h = vb.register_forward_hook(lambda m, i, o: buf.__setitem__("o", o.detach()))
+        abs_, rel_, nb = 0.0, 0.0, 0
+        try:
+            for x, _ in loader01:
+                if nb >= n_batches:
+                    break
+                x = x.to(device)
+                core.set_noise(False); wrapper(x); clean = buf["o"]
+                core.set_noise(True);  wrapper(x); noisy = buf["o"]
+                inj = noisy - clean
+                abs_ += inj.std().item()
+                rel_ += (inj.std() / (clean.abs().mean() + 1e-8)).item()
+                nb += 1
+        finally:
+            h.remove()
+            core.set_noise(True)                           # вернуть шум для последующего eval
+        return (abs_ / max(nb, 1)), (rel_ / max(nb, 1))
+
+    ni = core._noise_idx                                   # tile: diff вокруг точки впрыска
     pre_mod = core._stages[ni][1]
     post_mod = core._stages[ni + 1][1] if ni + 1 < len(core._stages) else core.class_pool
     buf = {}
@@ -45,8 +85,8 @@ def measure_sigma_eff(core, wrapper, loader01, device, n_batches=3):
         for x, _ in loader01:
             if nb >= n_batches:
                 break
-            wrapper(x.to(device))                      # полный eval-проход (шум включён)
-            inj = buf["post"] - buf["pre"]             # впрыснутый шум
+            wrapper(x.to(device))
+            inj = buf["post"] - buf["pre"]
             abs_ += inj.std().item()
             rel_ += (inj.std() / (buf["pre"].abs().mean() + 1e-8)).item()
             nb += 1
@@ -69,6 +109,12 @@ def accuracy(wrapper, loader, device, reps=1):
     return c / t
 
 
+def _knob(spec, core):
+    if spec.get("arch", "tile") == "vone":
+        return float(core.arch.get("noise_scale", 0.0))
+    return float(spec.get("noise_sigma", spec.get("noise_scale", 0.0)))
+
+
 # ───────────────────────────── main ─────────────────────────────
 
 def main():
@@ -84,10 +130,9 @@ def main():
     eps_list = list(cfg.eps_255)
     print(f"Device: {device} | dataset={cfg.dataset} | models={[m.name for m in cfg.models]}")
 
-    # данные
     atk_ld = get_eval_loader01(cfg.dataset, cfg.n, cfg.seed_eval, cfg.batch_size,
-                               cfg.num_workers, cfg.data_root)                      # [0,1] для σ_eff/атак
-    images, labels = load_test_uint8(cfg.dataset, cfg.data_root, cfg.cache_dir)      # uint8 для коррапшенов
+                               cfg.num_workers, cfg.data_root)
+    images, labels = load_test_uint8(cfg.dataset, cfg.data_root, cfg.cache_dir)
     if cfg.n is not None and cfg.n < len(labels):
         g = torch.Generator().manual_seed(cfg.seed_eval)
         idx = torch.randperm(len(labels), generator=g)[:cfg.n].numpy()
@@ -96,27 +141,28 @@ def main():
 
     rows = []
     for spec in cfg.models:
-        print(f"\n── {spec.name} ──")
+        arch = spec.get("arch", "tile")
+        print(f"\n── {spec.name} ({arch}) ──")
         core, m = build(spec, num_classes, device)
-        s_abs, s_rel = measure_sigma_eff(core, m, atk_ld, device, cfg.get("sigma_batches", 3))
+        s_abs, s_rel = measure_sigma_eff(core, m, atk_ld, device, arch, cfg.get("sigma_batches", 3))
         stoch = s_abs > 1e-4
         k = int(cfg.eot_k) if stoch else 0
         reps = int(cfg.get("vote_reps", 8)) if stoch else 1
 
-        row = dict(model=spec.name, noise_type=spec.get("noise_type", "additive"),
-                   knob=float(spec.get("noise_sigma", spec.get("noise_scale", 0.0))),
-                   sigma_eff=round(s_abs, 4), sigma_rel=round(s_rel, 4))
+        row = dict(model=spec.name, arch=arch,
+                   noise_type=("neuronal" if arch == "vone" else spec.get("noise_type", "additive")),
+                   knob=_knob(spec, core), sigma_eff=round(s_abs, 4), sigma_rel=round(s_rel, 4))
 
-        clean_sub = accuracy(m, clean_ld, device, reps)                 # знаменатель retention
+        clean_sub = accuracy(m, clean_ld, device, reps)
         row["clean"] = round(clean_sub, 4)
         print(f"   σ_eff={s_abs:.4f}  σ_rel={s_rel:.4f}  clean={clean_sub:.4f}  (stoch={stoch}, k={k}, reps={reps})")
 
-        for e in eps_list:                                              # adversarial
+        for e in eps_list:
             r = eot_pgd_acc(m, atk_ld, e / 255, device, steps=cfg.steps, eot=k, reps=reps, amp=cfg.amp)
             row[f"robust@{e}"] = round(r, 4)
             print(f"   robust@{e}/255 = {r:.4f}")
 
-        for c in NAT:                                                   # natural-коррапшены (механизм)
+        for c in NAT:
             accs = []
             for s in cfg.severities:
                 cache = Path(cfg.cache_dir) / "corrupt" / f"{cfg.dataset}_n{len(labels)}" / f"{c}_s{s}.npy"

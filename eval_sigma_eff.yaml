@@ -1,62 +1,87 @@
-# Simkin Poisson (опция A) — свип по noise_scale, валидация устойчивости.
-# Положи в configs/eval_sigma_eff.yaml. Логика та же, что была у sigma-свипа,
-# только ручка теперь noise_scale (меньше scale → больше шума), level фиксирован.
-# additive (σ=3.0) и baseline повторно НЕ гоняем — их числа уже есть.
-dataset: imagenette # imagenette | imagewoof | stl10
+# Simkin (tile) vs VOne на оси σ_eff. Обе семьи — Poisson, дообучены под свой шум (пункт B).
+# Положи в configs/eval_sigma_eff.yaml. Пути ckpt поправь под реальные имена.
+dataset: imagenette
 data_root: data
 cache_dir: cache
 out_dir: output/sigma_eff
 
-n: 1000 # подвыборка теста (на ней clean/robust/retention)
+n: 1000
 seed_eval: 0
 batch_size: 64
 num_workers: 4
 amp: true
 
-eps_255: [2, 4] # Linf-бюджеты для EOT-PGD
-steps: 20 # шагов PGD
-eot_k: 10 # реализаций шума на градиент
-vote_reps: 8 # голосование на eval
-sigma_batches: 3 # по скольки чистым батчам усреднять σ_eff (опционально, для общей оси)
+eps_255: [2, 4]
+steps: 20
+eot_k: 10
+vote_reps: 8
+sigma_batches: 3
 
-severities: [1, 2, 3, 4, 5] # natural-коррапшены усредняются по severity
+severities: [1, 2, 3, 4, 5]
 
-# По модели на каждое значение noise_scale (как раньше по sigma).
-# noise_level фиксирован (дефолт VOne 0.07). Simkin-ckpt хранит только state_dict,
-# поэтому noise_type/scale/level задаём тут.
 models:
-  - name: pois_sc0.70
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.7_lam0.2_s42.pt
-    tap: l4
-    noise_tap: conv1
-    dual_bn: true
-    noise_type: neuronal
-    noise_scale: 0.70 # слабый шум
-    noise_level: 0.07
+  - {
+      name: simk_sc0.70,
+      arch: tile,
+      ckpt: models/imagenette_LateSimkin_l4_poisSc0.7_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.70,
+      noise_level: 0.07,
+    }
+  - {
+      name: simk_sc0.35,
+      arch: tile,
+      ckpt: models/imagenette_LateSimkin_l4_poisSc0.35_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.35,
+      noise_level: 0.07,
+    }
+  - {
+      name: simk_sc0.20,
+      arch: tile,
+      ckpt: models/imagenette_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.20,
+      noise_level: 0.07,
+    }
+  - {
+      name: simk_sc0.10,
+      arch: tile,
+      ckpt: models/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.10,
+      noise_level: 0.07,
+    }
 
-  - name: pois_sc0.35
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.35_lam0.2_s42.pt
-    tap: l4
-    noise_tap: conv1
-    dual_bn: true
-    noise_type: neuronal
-    noise_scale: 0.35 # дефолт VOne
-    noise_level: 0.07
-
-  - name: pois_sc0.20
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt
-    tap: l4
-    noise_tap: conv1
-    dual_bn: true
-    noise_type: neuronal
-    noise_scale: 0.20
-    noise_level: 0.07
-
-  - name: pois_sc0.10
-    ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/20/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt
-    tap: l4
-    noise_tap: conv1
-    dual_bn: true
-    noise_type: neuronal
-    noise_scale: 0.10 # сильный шум
-    noise_level: 0.07
+  - {
+      name: vone_sc0.70,
+      arch: vone,
+      ckpt: models/imagenette_vone_sc0.70_s42.pt,
+    }
+  - {
+      name: vone_sc0.35,
+      arch: vone,
+      ckpt: models/imagenette_vone_sc0.35_s42.pt,
+    }
+  - {
+      name: vone_sc0.20,
+      arch: vone,
+      ckpt: models/imagenette_vone_sc0.20_s42.pt,
+    }
+  - {
+      name: vone_sc0.10,
+      arch: vone,
+      ckpt: models/imagenette_vone_sc0.10_s42.pt,
+    }
