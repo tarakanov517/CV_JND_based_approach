@@ -20,50 +20,50 @@ sigma_batches: 3
 severities: [1, 2, 3, 4, 5]
 
 models:
-  - {
-      name: simk_sc0.70,
-      arch: tile,
-      ckpt: models/imagenette_LateSimkin_l4_poisSc0.7_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 0.70,
-      noise_level: 0.07,
-    }
-  - {
-      name: simk_sc0.35,
-      arch: tile,
-      ckpt: models/imagenette_LateSimkin_l4_poisSc0.35_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 0.35,
-      noise_level: 0.07,
-    }
-  - {
-      name: simk_sc0.20,
-      arch: tile,
-      ckpt: models/imagenette_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 0.20,
-      noise_level: 0.07,
-    }
-  - {
-      name: simk_sc0.10,
-      arch: tile,
-      ckpt: models/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 0.10,
-      noise_level: 0.07,
-    }
+  # - {
+  #     name: simk_sc0.70,
+  #     arch: tile,
+  #     ckpt: models/imagenette_LateSimkin_l4_poisSc0.7_lam0.2_s42.pt,
+  #     tap: l4,
+  #     noise_tap: conv1,
+  #     dual_bn: true,
+  #     noise_type: neuronal,
+  #     noise_scale: 0.70,
+  #     noise_level: 0.07,
+  #   }
+  # - {
+  #     name: simk_sc0.35,
+  #     arch: tile,
+  #     ckpt: models/imagenette_LateSimkin_l4_poisSc0.35_lam0.2_s42.pt,
+  #     tap: l4,
+  #     noise_tap: conv1,
+  #     dual_bn: true,
+  #     noise_type: neuronal,
+  #     noise_scale: 0.35,
+  #     noise_level: 0.07,
+  #   }
+  # - {
+  #     name: simk_sc0.20,
+  #     arch: tile,
+  #     ckpt: models/imagenette_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt,
+  #     tap: l4,
+  #     noise_tap: conv1,
+  #     dual_bn: true,
+  #     noise_type: neuronal,
+  #     noise_scale: 0.20,
+  #     noise_level: 0.07,
+  #   }
+  # - {
+  #     name: simk_sc0.10,
+  #     arch: tile,
+  #     ckpt: models/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt,
+  #     tap: l4,
+  #     noise_tap: conv1,
+  #     dual_bn: true,
+  #     noise_type: neuronal,
+  #     noise_scale: 0.10,
+  #     noise_level: 0.07,
+  #   }
 
   - {
       name: vone_sc0.70,
