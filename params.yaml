@@ -124,6 +124,7 @@ exp224:
     data_root: data
     pretrained: "models/vonenet_resnet50_e70.pth.tar" # https://vonenetmodels.s3.us-east-2.amazonaws.com/vonenet_resnet50_e70.pth.tar
     epochs: 10
+    noise_scales: [0.7, 0.35, 0.2, 0.1]
     lr: 0.001
     batch_size: 64
     num_workers: 4

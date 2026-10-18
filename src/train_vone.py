@@ -29,24 +29,35 @@ def load_cfg(argv=None):
 
 def run(cfg):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    torch.manual_seed(cfg.seed)
-    np.random.seed(cfg.seed)
-    
     print(OmegaConf.to_yaml(cfg))
-    
     tr_loader, te_loader = get_loaders(cfg.dataset, cfg.batch_size, cfg.num_workers, cfg.data_root)
-    if cfg.pretrained:
-        model = from_imagenet_ckpt(cfg.pretrained, num_classes=10)
-    else:
-        print("[VOne] БЕЗ ImageNet-претрейна")
-        model = VOneClassifier(num_classes=10)
-    model = model.to(device)
-    hist = train_classifier(model, tr_loader, te_loader, cfg.epochs, cfg.lr, device, amp=cfg.amp)
-    out = Path(cfg.out_dir) / f"{cfg.dataset}_vone_s{cfg.seed}.pt"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    save_vone(model, out)
-    print(f"saved {out} | clean={hist[-1]['test_acc']:.4f}")
-    return out
+
+    scales = list(cfg.noise_scales) if cfg.get("noise_scales") else [cfg.get("noise_scale", None)]
+    outs = []
+    for ns in scales:
+        torch.manual_seed(cfg.seed); np.random.seed(cfg.seed)      # одинаковый старт для всех точек
+        if cfg.pretrained:
+            model = from_imagenet_ckpt(cfg.pretrained, num_classes=10)
+        else:
+            print("[VOne] БЕЗ ImageNet-претрейна")
+            model = VOneClassifier(num_classes=10)
+        tag = ""
+        if ns is not None:                                        
+            model.arch["noise_scale"] = float(ns)
+            model.arch["noise_level"] = float(cfg.get("noise_level", model.arch["noise_level"]))
+            model.net.vone_block.set_noise_mode(model.arch["noise_mode"],
+                                                model.arch["noise_scale"], model.arch["noise_level"])
+            tag = f"_sc{model.arch['noise_scale']:g}"
+            print(f"[VOne] noise_scale={model.arch['noise_scale']} level={model.arch['noise_level']}")
+        model = model.to(device)
+        hist = train_classifier(model, tr_loader, te_loader, cfg.epochs, cfg.lr, device, amp=cfg.amp)
+        out = Path(cfg.out_dir) / f"{cfg.dataset}_vone{tag}_s{cfg.seed}.pt"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        save_vone(model, out)
+        print(f"saved {out} | clean={hist[-1]['test_acc']:.4f}")
+        outs.append(out)
+        del model; torch.cuda.empty_cache()
+    return outs
 
 
 if __name__ == "__main__":
