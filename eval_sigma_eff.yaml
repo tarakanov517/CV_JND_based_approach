@@ -68,20 +68,20 @@ models:
   - {
       name: vone_sc0.70,
       arch: vone,
-      ckpt: kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.7_s42.pt,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.7_s42.pt,
     }
   - {
       name: vone_sc0.35,
       arch: vone,
-      ckpt: kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.35_s42.pt,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.35_s42.pt,
     }
   - {
       name: vone_sc0.20,
       arch: vone,
-      ckpt: kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.2_s42.pt,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.2_s42.pt,
     }
   - {
       name: vone_sc0.10,
       arch: vone,
-      ckpt: kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.1_s42.pt,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.1_s42.pt,
     }
