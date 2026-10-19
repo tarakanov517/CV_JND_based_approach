@@ -35,7 +35,7 @@ echo "experiment=$NAME seed=$SEED order=[$BLOCK1,$BLOCK2,$BLOCK3,$BLOCK4]"
 python3 main_adaptive.py \
     --name "$NAME" \
     --order "$BLOCK1" "$BLOCK2" "$BLOCK3" "$BLOCK4" \
-    --baseline-dir "results/profiles/baseline/seed_$SEED" \
+    --baseline-dir "results/baseline/seed_$SEED" \
     --output-dir results/adaptive \
     --dataset "ilee0022/Caltech-256" \
     --seed "$SEED" \

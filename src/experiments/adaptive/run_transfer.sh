@@ -25,7 +25,7 @@ SEED="${SEEDS[$SLURM_ARRAY_TASK_ID]}"
 mkdir -p logs "$HF_HOME"
 
 python3 transfer_adaptive.py \
-    --source-results-dir results/profiles \
+    --source-results-dir results \
     --target-results-dir results/adaptive \
     --seed "$SEED" \
     --batch-size 16 \
