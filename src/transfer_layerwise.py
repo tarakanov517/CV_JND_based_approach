@@ -37,11 +37,14 @@ def epsilon_key(value):
 
 def load_model(run_dir, result, device):
     block = "all" if result["noise_block"] == "none" else result["noise_block"]
+    if block == "profile":
+        block = "all"
     model = CORnetRT(
         num_classes=257,
         sigma_axon=result["sigma_axon"],
         sigma_dendrite=result["sigma_dendrite"],
         parameter_noise_block=block,
+        axon_profile=result.get("axon_profile"),
     )
     model = NormalizedModel(model)
     state_dict = torch.load(run_dir / "model.pt", map_location="cpu", weights_only=True)

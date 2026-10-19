@@ -92,15 +92,31 @@ class CORnetRT(nn.Module):
         sigma_axon=0.0,
         sigma_dendrite=0.0,
         parameter_noise_block="all",
+        axon_profile=None,
+        dendrite_profile=None,
     ):
         super().__init__()
         self.times = times
 
+        selected_blocks = (
+            {"V1", "V2", "V4", "IT"}
+            if parameter_noise_block == "all"
+            else set(parameter_noise_block.split("+"))
+        )
+
         def parameter_noise(block):
-            enabled = parameter_noise_block == "all" or parameter_noise_block == block
+            enabled = block in selected_blocks
             return {
-                "sigma_axon": sigma_axon if enabled else 0.0,
-                "sigma_dendrite": sigma_dendrite if enabled else 0.0,
+                "sigma_axon": (
+                    float(axon_profile.get(block, 0.0))
+                    if axon_profile is not None
+                    else sigma_axon if enabled else 0.0
+                ),
+                "sigma_dendrite": (
+                    float(dendrite_profile.get(block, 0.0))
+                    if dendrite_profile is not None
+                    else sigma_dendrite if enabled else 0.0
+                ),
             }
 
         self.V1 = CORblockRT(

@@ -20,7 +20,22 @@ def parse_args():
     parser.add_argument("--name", required=True)
     parser.add_argument("--noise-kind", choices=("baseline", "axon", "dendrite"))
     parser.add_argument(
-        "--noise-block", choices=("none", "V1", "V2", "V4", "IT", "all")
+        "--noise-block",
+        choices=(
+            "none",
+            "V1",
+            "V2",
+            "V4",
+            "IT",
+            "V1+V2",
+            "V1+V4",
+            "V1+IT",
+            "V2+V4",
+            "V2+IT",
+            "V4+IT",
+            "all",
+            "profile",
+        ),
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--weights", type=Path, default=Path("weights.pth"))
@@ -35,6 +50,8 @@ def parse_args():
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--sigma-axon", type=float, default=0.0)
     parser.add_argument("--sigma-dendrite", type=float, default=0.0)
+    parser.add_argument("--axon-profile", type=float, nargs=4)
+    parser.add_argument("--profile-family", default="")
     parser.add_argument("--attack-epsilons", type=float, nargs="+", default=(2, 4))
     parser.add_argument("--pgd-steps", type=int, default=10)
     return parser.parse_args()
@@ -48,12 +65,16 @@ def set_seed(seed):
 
 
 def build_model(args):
-    block = "all" if args.noise_block == "none" else args.noise_block
+    block = "all" if args.noise_block in ("none", "profile") else args.noise_block
+    axon_profile = None
+    if args.axon_profile is not None:
+        axon_profile = dict(zip(("V1", "V2", "V4", "IT"), args.axon_profile))
     model = CORnetRT(
         num_classes=1000,
         sigma_axon=args.sigma_axon,
         sigma_dendrite=args.sigma_dendrite,
         parameter_noise_block=block,
+        axon_profile=axon_profile,
     )
     checkpoint = torch.load(args.weights, map_location="cpu", weights_only=True)
     state_dict = checkpoint.get("state_dict", checkpoint)
@@ -114,6 +135,12 @@ def main():
         "clean_accuracy": clean["accuracy"],
         "sigma_axon": args.sigma_axon,
         "sigma_dendrite": args.sigma_dendrite,
+        "axon_profile": (
+            dict(zip(("V1", "V2", "V4", "IT"), args.axon_profile))
+            if args.axon_profile is not None
+            else None
+        ),
+        "profile_family": args.profile_family,
         "attack_epsilons_px": args.attack_epsilons,
         "pgd_steps": args.pgd_steps,
     }

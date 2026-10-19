@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=cornet-layerwise-transfer
+#SBATCH --job-name=cornet-profiles-transfer
 #SBATCH --partition=rocky
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=9
 #SBATCH --time=1-00:00:00
 #SBATCH --array=0-2%3
-#SBATCH --output=logs/layerwise_transfer_%A_%a.out
+#SBATCH --output=logs/profiles_transfer_%A_%a.out
 #SBATCH --mail-user=arilmusaev@edu.hse.ru
 #SBATCH --mail-type=END,FAIL
 
@@ -22,10 +22,12 @@ export HF_HOME="$PROJECT_DIR/.cache/huggingface"
 SEEDS=(42 43 44)
 SEED="${SEEDS[$SLURM_ARRAY_TASK_ID]}"
 
+mkdir -p logs "$HF_HOME"
+
 python3 transfer_layerwise.py \
-    --results-dir layerwise_results \
+    --results-dir results/profiles \
     --seed "$SEED" \
     --batch-size 16 \
     --workers 8 \
-    --attack-epsilons 2 4 \
+    --attack-epsilons 2 4 8 \
     --pgd-steps 10

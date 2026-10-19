@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$SLURM_SUBMIT_DIR"
-RESULTS_DIR="$PROJECT_DIR/experiments_cornet"
+RESULTS_DIR="$PROJECT_DIR/results/base"
 cd "$PROJECT_DIR"
 
 if [[ ! -f "$HOME/venvs/cornet/bin/activate" ]]; then
@@ -51,7 +51,7 @@ COMMAND=(
     --name "$NAME"
     --seed "$SEED"
     --weights weights.pth
-    --output-dir experiments_cornet
+    --output-dir results/base
     --dataset "ilee0022/Caltech-256"
     --batch-size 32
     --workers 8
