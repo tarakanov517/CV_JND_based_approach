@@ -35,6 +35,7 @@ def run(cfg):
     scales = list(cfg.noise_scales) if cfg.get("noise_scales") else [cfg.get("noise_scale", None)]
     outs = []
     for ns in scales:
+        print(f"Noise scale: {ns}")
         torch.manual_seed(cfg.seed); np.random.seed(cfg.seed)      # одинаковый старт для всех точек
         if cfg.pretrained:
             model = from_imagenet_ckpt(cfg.pretrained, num_classes=10)
