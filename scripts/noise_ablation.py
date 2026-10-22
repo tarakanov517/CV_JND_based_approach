@@ -1,19 +1,7 @@
-"""Задача 1. Noise-ablation для late-simkin (голова l4, шум на conv1), по умолчанию STL-10 / 96.
-
-Идём по σ по возрастанию (от 0 и текущей 0.5 вверх), пока модель не «сломается»:
-    bad(σ) = clean < clean_baseline - clean_drop   или   train_acc(последняя эпоха) < min_train_acc
-
-На каждую σ пишется строка в CSV (резюмируемо: готовые строки пропускаются):
-    clean, robust@eps (EOT-PGD k для σ>0, PGD для σ=0), train_acc, act_std на conv1, σ/act_std
-В конце: проверка EOT по k (2·k) на максимальной «хорошей» σ -- исключаем маскировку градиента
-при большом шуме, и подсказка σ* (max robust@eps2 при clean ≥ baseline - pick_clean_drop).
-
-Запуск:
-    python scripts/noise_ablation.py
-    python scripts/noise_ablation.py ab.sigmas=[0.5,1,2,4] ab.seeds=[42,0] ab.with_no_simkin=true
-    python scripts/noise_ablation.py ab.eval_n=null          # EOT-PGD на полном тесте (дорого)
-Ключи `ab.*` -> секция noise_ablation, остальные -> late_simkin (как в src/train_late_simkin.py).
-"""
+# python scripts/noise_ablation.py
+# python scripts/noise_ablation.py ab.sigmas=[0.5,1,2,4] ab.seeds=[42,0] ab.with_no_simkin=true
+# python scripts/noise_ablation.py ab.eval_n=null          # EOT-PGD на полном тесте (дорого)
+# Ключи ab.* -> секция noise_ablation, остальные -> late_simkin.
 import json
 import sys
 from pathlib import Path
@@ -28,7 +16,7 @@ rootutils.setup_root(__file__, indicator="src", pythonpath=True)
 
 from src.cls_data import get_eval_loader01
 from src.train_late_simkin import (build_loaders, get_phase1_head, get_phase2_base, train_phase3,
-                                   new_model, ckpt_name, load_cfg)
+                                    new_model, ckpt_name, load_cfg)
 from scripts.eval_blackbox import Norm01, eot_pgd_acc
 
 COLS = ["seed", "config", "noise_sigma", "lam", "clean", "train_acc", "act_std", "sigma_over_act",
@@ -46,7 +34,7 @@ def parse_args(argv):
 
 @torch.no_grad()
 def act_stats(model, loader01, device, n_batches=4):
-    """std активаций в точке впрыска шума (до шума) на чистом тесте -> масштаб для σ."""
+    """std активаций в точке впрыска (до шума) на чистом тесте -> масштаб для σ."""
     _, mod = model._stages[model._noise_idx]
     acts = []
     h = mod.register_forward_hook(lambda m, i, o: acts.append(o.detach().float().flatten().cpu()))
@@ -56,8 +44,7 @@ def act_stats(model, loader01, device, n_batches=4):
             break
         m01(x.to(device))
     h.remove()
-    a = torch.cat(acts)
-    return float(a.std())
+    return float(torch.cat(acts).std())
 
 
 @torch.no_grad()
@@ -169,7 +156,7 @@ def main(argv=None):
                     print(f"  стоп: {ab.patience} подряд bad-точек (последняя σ={ns})")
                     break
 
-    # проверка EOT по k на максимальной хорошей σ (на seed[0], основная конфигурация)
+    # проверка EOT по k на максимальной хорошей σ (seed[0], основная конфигурация)
     seed = ab.seeds[0]
     good = [r for r in rows if r["seed"] == seed and r["config"] == "late_simkin" and not r["bad"]
             and r["noise_sigma"] > 0]
@@ -229,7 +216,7 @@ def report(df, ab, out_csv):
         fig.tight_layout()
         fig.savefig(out_csv.with_suffix(".png"), dpi=130)
         print(f"график: {out_csv.with_suffix('.png')}")
-    except Exception as ex:                         
+    except Exception as ex:
         print(f"(график не построен: {ex})")
 
 

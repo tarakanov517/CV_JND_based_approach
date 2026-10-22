@@ -1,19 +1,14 @@
-"""
-Генерация датасета изображений эксперимента 7.3 (Симкин).
-
-Запуск:
-    python scripts/generate_7_3.py
-"""
-
+# python scripts/generate_7_3.py        # датасет эксперимента 7.3 (Симкин)
 import csv
-import random
 import os
-import cv2
-import rootutils
-import numpy as np
-from joblib import delayed, Parallel
-from omegaconf import OmegaConf, DictConfig
+import random
 from pathlib import Path
+
+import cv2
+import numpy as np
+import rootutils
+from joblib import Parallel, delayed
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
 rootutils.setup_root(__file__, indicator="src", pythonpath=True)
@@ -23,16 +18,10 @@ from src.stimulus import make_luminance_map, luminance_map_to_canvas, deformatio
 from src.common import make_dir
 from src.visibility_funcs import is_visible_7_3
 
-COUNTS = {
-    "niche": 100,
-    "triangle": 100,
-    "rect": 100,
-    "circle": 100,
-}
-
+COUNTS = {"niche": 100, "triangle": 100, "rect": 100, "circle": 100}
 THETA_CORNER = list(range(1, 17))
-THETA_NICHE  = list(range(1, 33))
-SIDES_NICHE  = ["top", "bottom", "left", "right"]
+THETA_NICHE = list(range(1, 33))
+SIDES_NICHE = ["top", "bottom", "left", "right"]
 
 
 def sample_luminance(cfg: DictConfig) -> DictConfig:
@@ -44,17 +33,12 @@ def sample_luminance(cfg: DictConfig) -> DictConfig:
 
 
 def process_one(task: dict, out_dir: Path) -> dict:
-    cfg = task["cfg"]
-    mode = task["mode"]
-    params = task["params"]
-    seed = task["seed"]
-    label = task["label"]
-    idx = task["idx"]
+    cfg, mode, params = task["cfg"], task["mode"], task["params"]
+    seed, label, idx = task["seed"], task["label"], task["idx"]
 
     np.random.seed(seed)
     square = "left" if np.random.random() > 0.5 else "right"
-    lmap = make_luminance_map(cfg)
-    canvas = luminance_map_to_canvas(lmap, cfg)
+    canvas = luminance_map_to_canvas(make_luminance_map(cfg), cfg)
     deformation(canvas, cfg, mode=mode, params=params, square=square)
     canvas = add_noise(canvas, sigma=cfg.noise.sigma)
 
@@ -80,22 +64,16 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
             sample_cfg = sample_luminance(cfg)
             if mode == "niche":
                 side = random.choice(SIDES_NICHE)
-                h = random.choice(THETA_NICHE)
-                w = random.choice(THETA_NICHE)
+                h, w = random.choice(THETA_NICHE), random.choice(THETA_NICHE)
                 params = (side, h, w)
                 label = f"niche_{side}_h{h:02d}_w{w:02d}"
             else:
                 theta = random.choice(THETA_CORNER)
                 params = theta
                 label = f"{mode}_t{theta:02d}"
-
             tasks.append({
-                "cfg": sample_cfg,
-                "mode": mode,
-                "params": params,
-                "label": label,
-                "seed": cfg.general.seed + global_idx,
-                "idx": global_idx,
+                "cfg": sample_cfg, "mode": mode, "params": params, "label": label,
+                "seed": cfg.general.seed + global_idx, "idx": global_idx,
             })
             global_idx += 1
     return tasks
@@ -106,13 +84,9 @@ def main(cfg: DictConfig):
     csv_path = Path(cfg.general.output_folder) / "labels_7_3.csv"
 
     print(f"φ₀ = {phi0_arcmin(cfg):.3f} arcmin/pixel")
-    
     tasks = build_tasks(cfg)
-
-    n_jobs = os.cpu_count()
-    rows = Parallel(n_jobs=n_jobs, backend="threading")(
-        delayed(process_one)(task, out_dir)
-        for task in tqdm(tasks)
+    rows = Parallel(n_jobs=os.cpu_count(), backend="threading")(
+        delayed(process_one)(task, out_dir) for task in tqdm(tasks)
     )
 
     fieldnames = ["filename", "mode", "params", "L_outer", "L_inner", "visible"]
@@ -123,5 +97,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    cfg = OmegaConf.load("params.yaml")
-    main(cfg)
+    main(OmegaConf.load("params.yaml"))

@@ -1,12 +1,3 @@
-"""Классификационные датасеты для всех экспериментов.
-
-    stl10       -- 96x96, HF jxie/stl10 (старый пайплайн, трансформы 1:1 как в train_tile)
-    imagenette  -- нативные 224, fast.ai imagenette2-320 (10 простых классов ImageNet)
-    imagewoof   -- нативные 224, fast.ai imagewoof2-320 (10 пород собак, сложнее, нет потолка ~99%)
-
-Train-лоадеры отдают ImageNet-нормализованные тензоры (как раньше),
-eval-лоадеры для атак (get_eval_loader01) -- тензоры в [0, 1] (нормализацию делает обёртка Norm01).
-"""
 from pathlib import Path
 
 import numpy as np
@@ -69,7 +60,7 @@ def _fastai_root(name: str, root: str | Path, download: bool = True) -> Path:
 
 
 def get_dataset(name: str, split: str, transform, root: str | Path = "data"):
-    """split: 'train' | 'test'  (для imagenette/imagewoof 'test' == их 'val')."""
+    """split: 'train' | 'test' (для imagenette/imagewoof 'test' == их 'val')."""
     if name == "stl10":
         from datasets import load_dataset
         from src.custom_datasets import STL10RGBDataset
@@ -82,7 +73,7 @@ def get_dataset(name: str, split: str, transform, root: str | Path = "data"):
 
 
 def get_loaders(name: str, batch_size: int, num_workers: int, root: str | Path = "data"):
-    """(train_loader, test_loader) с ImageNet-нормализацией -- для обучения."""
+    """(train_loader, test_loader) с ImageNet-нормализацией — для обучения."""
     pin = torch.cuda.is_available()
     tr = get_dataset(name, "train", make_transforms(name, train=True), root)
     te = get_dataset(name, "test", make_transforms(name, train=False), root)
@@ -94,7 +85,7 @@ def get_loaders(name: str, batch_size: int, num_workers: int, root: str | Path =
 
 
 def random_subset(ds, n: int | None, seed: int = 0):
-    """Случайная (не первые N!) подвыборка -- тест отсортирован по классам."""
+    """Случайная (не первые N!) подвыборка — тест отсортирован по классам."""
     if n is None or n >= len(ds):
         return ds
     g = torch.Generator().manual_seed(seed)
@@ -104,14 +95,14 @@ def random_subset(ds, n: int | None, seed: int = 0):
 
 def get_eval_loader01(name: str, n: int | None = None, seed: int = 0, batch_size: int = 128,
                       num_workers: int = 4, root: str | Path = "data"):
-    """Тест в [0,1] без нормализации -- вход для Norm01-обёрток и атак."""
+    """Тест в [0,1] без нормализации — вход для Norm01-обёрток и атак."""
     ds = get_dataset(name, "test", make_transforms(name, train=False, normalize=False), root)
     return DataLoader(random_subset(ds, n, seed), batch_size=batch_size, shuffle=False,
                       num_workers=num_workers)
 
 
 class UInt8Dataset(Dataset):
-    """Тест, закешированный как uint8 NHWC (нужен для corruptions: imagecorruptions работает с HWC uint8)."""
+    """Тест как uint8 NHWC — нужен для corruptions (imagecorruptions работает с HWC uint8)."""
 
     def __init__(self, images: np.ndarray, labels: np.ndarray):
         self.images, self.labels = images, labels

@@ -1,8 +1,10 @@
-import torch
 import numpy as np
+import torch
+
 
 @torch.no_grad()
 def collect_simkin(model, loader, device):
+    """Прогнать simk-ветку по loader; вернуть (предсказания, цели) как numpy."""
     model.eval()
     preds, tgts = [], []
     for imgs, y in loader:
@@ -11,7 +13,9 @@ def collect_simkin(model, loader, device):
         tgts.append(y)
     return torch.cat(preds).numpy(), torch.cat(tgts).numpy()
 
+
 def choose_thres(preds, psi):
+    """Перебор порога видимости по сетке: печатает bal_acc / TPR / TNR."""
     true_vis = psi > 0
     P, N = true_vis.sum(), (~true_vis).sum()
     for t in np.linspace(-1.5, 1.5, 31):

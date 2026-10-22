@@ -1,3 +1,4 @@
+# python src/train_tile.py        # параметры train_tile из params.yaml
 import numpy as np
 import torch
 import torch.nn as nn
@@ -33,6 +34,7 @@ test_tf = transforms.Compose([
 
 
 def pretrain_simkin(model, loader, epochs, lr, device, amp=False):
+    """Претрейн фронт-энда + Симкин-головы на регрессию log₂ψ (MSE)."""
     fe_ids = model.frontend_param_ids()                  # фронт-энд до tap включительно
     params = ([p for p in model.parameters() if id(p) in fe_ids]
               + list(model.simkin_head.parameters()))
@@ -82,6 +84,7 @@ def _bounds(device):
 
 
 def pgd(model, x, y, eps, alpha, steps, device, k_eot=0):
+    """PGD в нормализованном пространстве; k_eot>0 — усреднение градиента по шуму (EOT)."""
     mean, std, lo, hi = _bounds(device)
     eps_n, alpha_n = eps / std, alpha / std
     x_adv = x.clone().detach() + torch.empty_like(x).uniform_(-1, 1) * eps_n
@@ -149,10 +152,11 @@ def run_training(
     seed=42,
     tap="l1",
 ):
+    """STL-10: претрейн Симкин-головы -> дообучение классификатора (soft-freeze) -> clean/PGD/EOT."""
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+
     cfg = OmegaConf.load("params.yaml")
     print(f"Device: {device} | name={name} noise={noise_sigma} δ={soft_delta} pretrain={not no_pretrain}")
 
@@ -204,7 +208,6 @@ def run_training(
             best = acc
             torch.save(model.state_dict(), save_path)
 
-    # оценка модели
     model.load_state_dict(torch.load(save_path, map_location=device))
     clean = eval_clean(model, te_loader, device)
     r_pgd = eval_robust(model, te_loader, eps, pgd_steps, device, k_eot=0, n_batches=robust_batches)
@@ -230,7 +233,7 @@ def run_training(
 def main():
     cfg = OmegaConf.load("params.yaml")
     p = OmegaConf.to_container(cfg.train_tile, resolve=True)
-    p["eps"] = p.pop("eps_255") / 255.0       # с дробными числами в yaml напряженка
+    p["eps"] = p.pop("eps_255") / 255.0       # дробные числа в yaml неудобны
     run_training(**p)
 
 

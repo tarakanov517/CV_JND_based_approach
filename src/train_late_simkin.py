@@ -1,18 +1,6 @@
-"""Late-Simkin: голова Симкина на l4, нейронный шум на conv1.
-
-Фазы:
-  1. Симкин-претрейн (голова на l4)                     -> кеш {cache}/{ds}_simkin_head_l4_s{seed}.pt
-  2. Базовый классификатор (Симкин off, шум off)       -> кеш {cache}/{ds}_base_s{seed}.pt
-     Это же и есть BASELINE: ImageNet-pretrain ResNet50, дообученный тем же рецептом.
-  3. Мультитаск-дообучение хвоста + шум на conv1       -> {out}/{ds}_LateSimkin_{tail}_ns{σ}_lam{λ}_s{seed}.pt
-
-Фазы 1–2 от σ не зависят, поэтому кешируются и переиспользуются (noise-ablation гоняет только фазу 3).
-
-Запуск (параметры = секция late_simkin из params.yaml + пресет + CLI-оверрайды OmegaConf):
-    python src/train_late_simkin.py                                   # STL-10 96, как раньше
-    python src/train_late_simkin.py preset=exp224                     # Imagenette 224
-    python src/train_late_simkin.py preset=exp224 noise_sigmas=[0.5,1.0] tails=[l4]
-"""
+# python src/train_late_simkin.py                                  # STL-10 96
+# python src/train_late_simkin.py preset=exp224                    # Imagenette 224
+# python src/train_late_simkin.py preset=exp224 noise_sigmas=[0.5,1.0] tails=[l4]
 import sys
 from pathlib import Path
 
@@ -49,7 +37,7 @@ def _endless(loader):                 # бесконечный поток: пе�
             yield batch
 
 
-def freeze_bn_stats(model):           # BN в eval -> running-stats не обновляются (иначе тайл-форварды их портят)
+def freeze_bn_stats(model):           # BN в eval -> running-stats не обновляются
     for m in model.modules():
         if isinstance(m, nn.modules.batchnorm._BatchNorm):
             m.eval()
@@ -66,7 +54,7 @@ def frozen_pairs(model, tail):
     return pairs
 
 
-def clamp_frozen(pairs, delta):                 # вернуть conv-веса в коридор +- δ вокруг снимка
+def clamp_frozen(pairs, delta):                 # вернуть conv-веса в коридор ±δ вокруг снимка
     with torch.no_grad():
         for p, w0 in pairs:
             p.clamp_(w0 - delta, w0 + delta)
@@ -75,9 +63,9 @@ def clamp_frozen(pairs, delta):                 # вернуть conv-веса �
 def train_classifier(model, tr_loader, te_loader, epochs, lr, device,
                      multitask=False, simk_loader=None, lam=0.4,
                      frozen=None, delta=0.0, freeze_bn=False, amp=False):
-    """Возвращает историю: список dict(epoch, train_loss, train_acc, test_acc)."""
+    """Обучить классификатор (опц. мультитаск с simk); вернуть историю по эпохам."""
     criterion = nn.CrossEntropyLoss()
-    opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)   # все параметры обучаемы, мороз — клэмпом
+    opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)   # мороз реализуется клэмпом
     sched = optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     simk_it = _endless(simk_loader) if multitask else None
     use_amp = amp and device.type == "cuda"
@@ -85,7 +73,7 @@ def train_classifier(model, tr_loader, te_loader, epochs, lr, device,
     hist = []
     for ep in range(1, epochs + 1):
         model.train()
-        if freeze_bn:                 # не портим BN-статистики
+        if freeze_bn:
             freeze_bn_stats(model)
         tot, c, n = 0.0, 0, 0
         for x, y in tqdm(tr_loader, desc=f"E{ep}/{epochs}", leave=False):
@@ -101,7 +89,7 @@ def train_classifier(model, tr_loader, te_loader, epochs, lr, device,
             scaler.scale(loss).backward()
             scaler.step(opt)
             scaler.update()
-            if frozen and delta > 0:            # soft-freeze: возврат conv-весов в +-δ
+            if frozen and delta > 0:            # soft-freeze: возврат conv-весов в ±δ
                 clamp_frozen(frozen, delta)
             tot += loss.item() * y.size(0)
             c += (logits.argmax(1) == y).sum().item()
@@ -118,7 +106,7 @@ def build_loaders(cfg):
     tile_full = SingleTileDataset(cfg.tile_dir, cfg.tile_csv, sigma=cfg.render_sigma, fixed_seed=None)
     n_val = max(1, int(0.2 * len(tile_full)))
     tile_tr, _ = random_split(tile_full, [len(tile_full) - n_val, n_val],
-                              generator=torch.Generator().manual_seed(cfg.get("split_seed", 42)))  # сплит тайлов фиксирован
+                              generator=torch.Generator().manual_seed(cfg.get("split_seed", 42)))
     simk_loader = DataLoader(tile_tr, batch_size=cfg.batch_size, shuffle=True,
                              num_workers=cfg.num_workers, drop_last=True,
                              pin_memory=torch.cuda.is_available())
@@ -128,6 +116,13 @@ def build_loaders(cfg):
 
 def _cache_path(cfg, what, seed):
     return Path(cfg.cache_dir) / f"{cfg.dataset}_{what}_s{seed}.pt"
+
+
+def new_model(noise_sigma=0.0, num_classes=10, noise_type="additive",
+              noise_scale=0.35, noise_level=0.07):
+    extra = {} if noise_type == "additive" else dict(
+        noise_type=noise_type, noise_scale=noise_scale, noise_level=noise_level)
+    return TileResNet(num_classes=num_classes, noise_sigma=noise_sigma, **extra, **MODEL_KW)
 
 
 def get_phase1_head(cfg, simk_loader, device, seed):
@@ -161,18 +156,13 @@ def get_phase2_base(cfg, tr_loader, te_loader, device, seed):
     state = {k: v.detach().cpu().clone() for k, v in model_B.state_dict().items()}
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(state, path)
-    base_out = Path(cfg.out_dir) / f"{cfg.dataset}_baseline_s{seed}.pt"   # отдельная копия под бенчмарк
+    base_out = Path(cfg.out_dir) / f"{cfg.dataset}_baseline_s{seed}.pt"   # копия под бенчмарк
     base_out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(state, base_out)
     del model_B
     torch.cuda.empty_cache()
     return state
 
-def new_model(noise_sigma=0.0, num_classes=10, noise_type="additive",
-              noise_scale=0.35, noise_level=0.07):
-    extra = {} if noise_type == "additive" else dict(
-        noise_type=noise_type, noise_scale=noise_scale, noise_level=noise_level)
-    return TileResNet(num_classes=num_classes, noise_sigma=noise_sigma, **extra, **MODEL_KW)
 
 def ckpt_name(cfg, tail, knob, lam, seed):
     nt = cfg.get("noise_type", "additive")
@@ -182,6 +172,7 @@ def ckpt_name(cfg, tail, knob, lam, seed):
 
 def train_phase3(cfg, base_state, head_state, simk_loader, tr_loader, te_loader, device,
                  tail, knob, lam, seed):
+    """Фаза 3: мультитаск-дообучение хвоста + шум. Возвращает (model, history, ckpt_path)."""
     nt = cfg.get("noise_type", "additive")
     if nt == "additive":
         print(f"\n[Фаза 3] tail={tail}, additive шум на conv1 σ={knob}, λ={lam}, seed={seed}")

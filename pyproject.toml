@@ -1,7 +1,7 @@
 [project]
 name = "cv_jnd_approach"
 version = "0.1.0"
-description = ""
+description = "Перцептивно-обоснованная (Симкин/JND) робастность классификаторов изображений."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -28,12 +28,10 @@ class SingleTileDataset(Dataset):
 
     def __getitem__(self, i):
         fname, y = self.samples[i]
-        img = cv2.imread(str(self.dir / fname), cv2.IMREAD_GRAYSCALE) 
+        img = cv2.imread(str(self.dir / fname), cv2.IMREAD_GRAYSCALE)
         if self.fixed_seed is not None:
             np.random.seed(self.fixed_seed + i)
-            
         img = add_noise(img, self.sigma)
-        
         t = img.astype(np.float32) / 255.0
         t = np.stack([t, t, t], axis=0)
         t = (t - IMAGENET_MEAN[:, None, None]) / IMAGENET_STD[:, None, None]

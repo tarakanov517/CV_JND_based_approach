@@ -1,9 +1,9 @@
+# python scripts/generate_tile.py        # параметры general/display/visual/noise из params.yaml
 import csv
 import os
 import random
 from pathlib import Path
 
-import torch
 import cv2
 import numpy as np
 import rootutils
@@ -18,18 +18,16 @@ from src.display import cd_to_pixel
 from src.stimulus import add_overshoots, luminance_map_to_canvas
 from src.visibility_funcs import is_visible_8_1
 
-
-TILE_SIZE = 224      # 128         # масштаб эксперимента
-PHI_A_VALUES = [2, 4, 8, 16]        # [1, 2, 4, 8]   # размеры объекта
-PHI_V =  7             # 4               # ширина кольца выброса
-FIELD_SIZE = 33      # 19         # центральный квадрат L_N
+TILE_SIZE = 224                 # масштаб тайла (пикс.)
+PHI_A_VALUES = [2, 4, 8, 16]    # размеры объекта
+PHI_V = 7                       # ширина кольца выброса
+FIELD_SIZE = 33                 # центральный квадрат L_N
 
 EPSILON_VALUES = [0, 4, 16, 32]
 SLOPE_FORMS = ['sharp', 'hyperbolic', 'exponential', 'gaussian', 'triangle', 'cosine']
 SAMPLES_PER_COMBO = 50
 PSI_MIN, PSI_MAX = 0.2, 5.0
 L_MIN = 3.0                     # нижняя граница яркости
-
 
 
 def signal_energy(cfg: DictConfig, L_N: float, L_obj: float,
@@ -49,7 +47,7 @@ def signal_energy(cfg: DictConfig, L_N: float, L_obj: float,
 
 def solve_L_obj(cfg: DictConfig, L_N: float, target_energy: float,
                 phi_a: int, epsilon: float, slope: str) -> float:
-    """Бисекцией подбирает L_obj (темнее L_N), чтобы энергия примерно равнялась target_energy."""
+    """Бисекцией подбирает L_obj (темнее L_N), чтобы энергия ≈ target_energy."""
     Lmin = float(cfg.display.min_brightness)
     dL_max = float(L_N) - Lmin
     if dL_max <= 0:
@@ -69,19 +67,14 @@ def solve_L_obj(cfg: DictConfig, L_N: float, target_energy: float,
 
 def make_tile_lmap(L_a: float, L_N: float, L_obj: float,
                    phi_a: int, epsilon: float, slope: str):
-
     lmap = np.full((TILE_SIZE, TILE_SIZE), L_a, dtype=np.float32)   # адаптация
-
     fo = (TILE_SIZE - FIELD_SIZE) // 2                              # поле L_N
     lmap[fo:fo + FIELD_SIZE, fo:fo + FIELD_SIZE] = L_N
-
     ix = iy = (TILE_SIZE - phi_a) // 2                              # объект в центре
     lmap[iy:iy + phi_a, ix:ix + phi_a] = L_obj
-
     if epsilon > 0:                                                 # выброс в кольце
         add_overshoots(lmap, ix, iy, phi_a, PHI_V, epsilon,
                        abs(L_N - L_obj), slope_form=slope)
-
     return lmap, ix, iy
 
 
@@ -94,16 +87,12 @@ def process_one(task: dict, out_dir: Path) -> dict:
     L_obj = solve_L_obj(cfg, L_N, psi * thr, phi_a, epsilon, slope)
 
     lmap, ix, iy = make_tile_lmap(L_a, L_N, L_obj, phi_a, epsilon, slope)
-    canvas_clean = luminance_map_to_canvas(lmap, cfg)              # до шума -- для детектора
-    # noise = np.random.randint(-25, 25, canvas_clean.shape, dtype=np.int16)
-    # canvas_noise = np.clip(canvas_clean.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-
+    canvas_clean = luminance_map_to_canvas(lmap, cfg)               # до шума -- для детектора
     sample_cfg = OmegaConf.merge(cfg, {"luminance": {"outer": L_N, "inner": L_obj}})
 
     label = f"phi{phi_a:02d}_eps{epsilon:02d}_{slope}"
     filename = f"{label}_{idx:05d}.png"
-    cv2.imwrite(str(out_dir / filename),
-                cv2.cvtColor(canvas_clean, cv2.COLOR_GRAY2BGR))
+    cv2.imwrite(str(out_dir / filename), cv2.cvtColor(canvas_clean, cv2.COLOR_GRAY2BGR))
 
     return {
         "filename": filename,
@@ -125,7 +114,6 @@ def build_tasks(cfg: DictConfig) -> list[dict]:
     random.seed(cfg.general.seed)
     d = cfg.display
     tasks, idx = [], 0
-
     for phi_a in PHI_A_VALUES:
         for epsilon in EPSILON_VALUES:
             slopes = SLOPE_FORMS if epsilon > 0 else [SLOPE_FORMS[0]]
@@ -165,5 +153,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    cfg = OmegaConf.load("params.yaml")
-    main(cfg)
+    main(OmegaConf.load("params.yaml"))

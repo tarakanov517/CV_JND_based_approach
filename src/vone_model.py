@@ -1,9 +1,4 @@
-"""VOneResNet50 под общий интерфейс (ImageNet-нормализованный вход, forward(x, mode='clas')).
-
-Официальный чекпойнт (ImageNet): https://vonenetmodels.s3.us-east-2.amazonaws.com/vonenet_resnet50_e70.pth.tar
-В нём {'flags': {...}, 'state_dict': {'module.vone_block...', 'module.bottleneck...', 'module.model...'}}.
-Габоры (GFB.weight) лежат в state_dict, поэтому фильтры при загрузке совпадают с оригиналом.
-"""
+# Официальный ckpt: https://vonenetmodels.s3.us-east-2.amazonaws.com/vonenet_resnet50_e70.pth.tar
 import torch
 import torch.nn as nn
 
@@ -21,8 +16,8 @@ DEFAULT_ARCH = dict(stride=4, simple_channels=256, complex_channels=256, k_exc=2
 
 
 class VOneClassifier(nn.Module):
-    """Вход: ImageNet-нормализованный тензор (как у TileResNet/STL-лоадеров).
-    Внутри переводим в препроцессинг VOneNet: (x01 - 0.5) / 0.5 (так обучался официальный чекпойнт)."""
+    """VOneResNet50. Вход — ImageNet-нормализованный тензор (как у TileResNet);
+    внутри переводится в препроцессинг VOneNet (x01 - 0.5) / 0.5."""
 
     def __init__(self, num_classes=10, **arch):
         super().__init__()
@@ -43,14 +38,14 @@ class VOneClassifier(nn.Module):
 
 
 def from_imagenet_ckpt(path, num_classes=10, image_size=224, visual_degrees=8):
-    """Официальный ImageNet-чекпойнт -> VOneClassifier с новой fc на num_classes."""
+    """Официальный ImageNet-ckpt -> VOneClassifier с новой fc на num_classes."""
     ck = torch.load(path, map_location="cpu", weights_only=False)
     flags = ck.get("flags", {})
     arch = {k: flags[k] for k in ARCH_KEYS if k in flags}
     arch.update(image_size=image_size, visual_degrees=visual_degrees)
     m = VOneClassifier(num_classes=num_classes, **arch)
     state = {k.replace("module.", "", 1): v for k, v in ck["state_dict"].items()}
-    state = {k: v for k, v in state.items() if not k.startswith("model.fc.")}   # 1000-классовую fc выкидываем
+    state = {k: v for k, v in state.items() if not k.startswith("model.fc.")}   # 1000-кл. fc выкидываем
     missing, unexpected = m.net.load_state_dict(state, strict=False)
     assert all(k.startswith("model.fc.") for k in missing), f"missing: {missing}"
     assert not unexpected, f"unexpected: {unexpected}"
