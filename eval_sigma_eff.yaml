@@ -21,9 +21,42 @@ severities: [1, 2, 3, 4, 5]
 
 models:
   - {
+      name: simk_sc0.1,
+      arch: tile,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.1,
+      noise_level: 0.07,
+    }
+  - {
+      name: simk_sc0.2,
+      arch: tile,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_LateSimkin_l4_poisSc0.2_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.2,
+      noise_level: 0.07,
+    }
+  - {
+      name: simk_sc0.5,
+      arch: tile,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_LateSimkin_l4_poisSc0.5_lam0.2_s42.pt,
+      tap: l4,
+      noise_tap: conv1,
+      dual_bn: true,
+      noise_type: neuronal,
+      noise_scale: 0.5,
+      noise_level: 0.07,
+    }
+  - {
       name: simk_sc1,
       arch: tile,
-      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/23/imagenette_LateSimkin_l4_poisSc1_lam0.2_s42.pt,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_LateSimkin_l4_poisSc1_lam0.2_s42.pt,
       tap: l4,
       noise_tap: conv1,
       dual_bn: true,
@@ -32,56 +65,22 @@ models:
       noise_level: 0.07,
     }
   - {
-      name: simk_sc1,
-      arch: tile,
-      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/23/imagenette_LateSimkin_l4_poisSc1.5_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 1.5,
-      noise_level: 0.07,
+      name: vone_sc0.35,
+      arch: vone,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_vone_sc0.35_s42.pt,
     }
   - {
-      name: simk_sc1,
-      arch: tile,
-      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/23/imagenette_LateSimkin_l4_poisSc2_lam0.2_s42.pt,
-      tap: l4,
-      noise_tap: conv1,
-      dual_bn: true,
-      noise_type: neuronal,
-      noise_scale: 2,
-      noise_level: 0.07,
+      name: vone_sc0.2,
+      arch: vone,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_vone_sc0.2_s42.pt,
     }
-  # - {
-  #     name: simk_sc0.10,
-  #     arch: tile,
-  #     ckpt: models/imagenette_LateSimkin_l4_poisSc0.1_lam0.2_s42.pt,
-  #     tap: l4,
-  #     noise_tap: conv1,
-  #     dual_bn: true,
-  #     noise_type: neuronal,
-  #     noise_scale: 0.10,
-  #     noise_level: 0.07,
-  #   }
-
-  # - {
-  #     name: vone_sc0.70,
-  #     arch: vone,
-  #     ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.7_s42.pt,
-  #   }
-  # - {
-  #     name: vone_sc0.35,
-  #     arch: vone,
-  #     ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/21/imagenette_vone_sc0.35_s42.pt,
-  #   }
-  # - {
-  #     name: vone_sc0.08,
-  #     arch: vone,
-  #     ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/22/imagenette_vone_sc0.08_s42.pt,
-  #   }
-  # - {
-  #     name: vone_sc0.05,
-  #     arch: vone,
-  #     ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/22/imagenette_vone_sc0.05_s42.pt,
-  #   }
+  - {
+      name: vone_sc0.1,
+      arch: vone,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_vone_sc0.1_s42.pt,
+    }
+  - {
+      name: vone_sc0.05,
+      arch: vone,
+      ckpt: /kaggle/input/models/mrtyom/resnetmode/pytorch/default/24/imagewoof_vone_sc0.05_s42.pt,
+    }
