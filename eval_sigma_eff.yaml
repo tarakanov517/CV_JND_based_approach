@@ -1,6 +1,6 @@
 # Simkin (tile) vs VOne на оси σ_eff. Обе семьи — Poisson, дообучены под свой шум (пункт B).
 # Положи в configs/eval_sigma_eff.yaml. Пути ckpt поправь под реальные имена.
-dataset: imagenette
+dataset: imagewoof
 data_root: data
 cache_dir: cache
 out_dir: output/sigma_eff
