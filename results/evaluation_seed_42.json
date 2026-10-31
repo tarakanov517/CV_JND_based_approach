@@ -1,0 +1,94 @@
+{
+  "seed": 42,
+  "profiles": {
+    "zero": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "all_025": [
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ],
+    "all_050": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "all_085": [
+      0.85,
+      0.85,
+      0.85,
+      0.85
+    ],
+    "all_100": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "v1_050": [
+      0.5,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "v2_050": [
+      0.0,
+      0.5,
+      0.0,
+      0.0
+    ],
+    "v4_050": [
+      0.0,
+      0.0,
+      0.5,
+      0.0
+    ],
+    "it_050": [
+      0.0,
+      0.0,
+      0.0,
+      0.5
+    ]
+  },
+  "attack_epsilons": [
+    2.0,
+    4.0,
+    8.0
+  ],
+  "whitebox_examples": 512,
+  "mc_samples": 3,
+  "eot_samples": 4,
+  "pgd_steps": 10,
+  "training": {
+    "name": "conditional_axon",
+    "seed": 42,
+    "model_kind": "conditional_axon",
+    "blocks": [
+      "V1",
+      "V2",
+      "V4",
+      "IT"
+    ],
+    "epochs": 100,
+    "max_sigma": 1.0,
+    "anchor_sigma": 0.85,
+    "conditioner_hidden": 128,
+    "noise_warmup_epochs": 5,
+    "noise_ramp_epochs": 25,
+    "sampling_probabilities": {
+      "zero": 0.2,
+      "shared": 0.3,
+      "single": 0.3,
+      "independent": 0.19999999999999996
+    },
+    "best_selection_score": 0.6136116152450091,
+    "validation_zero_accuracy": 0.7190562613430127,
+    "validation_anchor_accuracy": 0.5963702359346642
+  }
+}

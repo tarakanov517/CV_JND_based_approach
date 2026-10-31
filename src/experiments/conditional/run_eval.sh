@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=cornet-adaptive-ext-transfer
+#SBATCH --job-name=cornet-conditional-eval
 #SBATCH --partition=rocky
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=9
 #SBATCH --time=1-00:00:00
 #SBATCH --array=0-2%3
-#SBATCH --output=logs/adaptive_extended_transfer_%A_%a.out
+#SBATCH --output=logs/conditional_eval_%A_%a.out
 #SBATCH --mail-user=arilmusaev@edu.hse.ru
 #SBATCH --mail-type=END,FAIL
 
@@ -24,13 +24,20 @@ export HF_DATASETS_OFFLINE=1
 SEEDS=(42 43 44)
 SEED="${SEEDS[$SLURM_ARRAY_TASK_ID]}"
 
-mkdir -p logs
+mkdir -p logs results/conditional_yoto
 
-python3 transfer_adaptive.py \
-    --source-results-dir results/profiles \
-    --target-results-dir results/adaptive_extended \
+echo "conditional evaluation seed=$SEED"
+
+python3 evaluate_conditional.py \
+    --model-dir "results/conditional_yoto/conditional_axon/seed_$SEED" \
+    --baseline-dir "results/profiles/baseline/seed_$SEED" \
+    --output-dir results/conditional_yoto \
+    --dataset "ilee0022/Caltech-256" \
     --seed "$SEED" \
-    --batch-size 16 \
+    --batch-size 8 \
     --workers 8 \
+    --mc-samples 3 \
+    --eot-samples 4 \
+    --whitebox-examples 512 \
     --attack-epsilons 2 4 8 \
     --pgd-steps 10

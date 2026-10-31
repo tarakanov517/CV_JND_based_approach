@@ -55,7 +55,18 @@ class CORblockRT(nn.Module):
         self.norm1 = nn.GroupNorm(32, out_channels)
         self.nonlin1 = nn.ReLU(inplace=True)
 
-    def forward(self, inputs=None, state=None, batch_size=None, device=None):
+    def forward(
+        self,
+        inputs=None,
+        state=None,
+        batch_size=None,
+        device=None,
+        sigma_axon=None,
+        sigma_dendrite=None,
+        conditioning=None,
+        noise_in_eval=False,
+    ):
+        has_signal = inputs is not None or state is not None
         if inputs is None:
             inputs = torch.zeros(
                 batch_size,
@@ -65,16 +76,62 @@ class CORblockRT(nn.Module):
                 device=device,
             )
         else:
-            inputs = self.conv_input(inputs)
+            inputs = self.conv_input(
+                inputs,
+                sigma_axon=sigma_axon,
+                sigma_dendrite=sigma_dendrite,
+                noise_in_eval=noise_in_eval,
+            )
             inputs = self.norm_input(inputs)
             inputs = self.activation_noise(inputs)
             inputs = self.nonlin_input(inputs)
         if state is None:
             state = 0
-        outputs = self.conv1(inputs + state)
+        outputs = self.conv1(
+            inputs + state,
+            sigma_axon=sigma_axon,
+            sigma_dendrite=sigma_dendrite,
+            noise_in_eval=noise_in_eval,
+        )
         outputs = self.norm1(outputs)
+        if conditioning is not None and has_signal:
+            scale, shift = conditioning
+            outputs = outputs * (1.0 + scale) + shift
         outputs = self.nonlin1(outputs)
         return outputs, outputs
+
+
+class NoiseConditioner(nn.Module):
+    def __init__(self, channels, hidden_size=128, max_sigma=1.0):
+        super().__init__()
+        self.blocks = tuple(channels)
+        self.max_sigma = float(max_sigma)
+        self.encoder = nn.Sequential(
+            nn.Linear(len(self.blocks), hidden_size),
+            nn.SiLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.SiLU(),
+        )
+        self.heads = nn.ModuleDict(
+            {
+                block: nn.Linear(hidden_size, 2 * block_channels)
+                for block, block_channels in channels.items()
+            }
+        )
+        for head in self.heads.values():
+            nn.init.zeros_(head.weight)
+            nn.init.zeros_(head.bias)
+
+    def forward(self, profile):
+        encoded = self.encoder(profile / self.max_sigma)
+        outputs = {}
+        for block, head in self.heads.items():
+            scale, shift = head(encoded).chunk(2, dim=1)
+            outputs[block] = (
+                scale.unsqueeze(-1).unsqueeze(-1),
+                shift.unsqueeze(-1).unsqueeze(-1),
+            )
+        return outputs
 
 
 class CORnetRT(nn.Module):
@@ -183,6 +240,111 @@ class CORnetRT(nn.Module):
         return self.decoder(outputs["IT"])
 
 
+class ConditionalCORnetRT(CORnetRT):
+    blocks = ("V1", "V2", "V4", "IT")
+
+    def __init__(
+        self,
+        num_classes=257,
+        times=5,
+        conditioner_hidden=128,
+        max_sigma=1.0,
+    ):
+        super().__init__(num_classes=num_classes, times=times)
+        channels = {"V1": 64, "V2": 128, "V4": 256, "IT": 512}
+        self.conditioner = NoiseConditioner(
+            channels,
+            hidden_size=conditioner_hidden,
+            max_sigma=max_sigma,
+        )
+        self.register_buffer(
+            "default_noise_profile",
+            torch.zeros(len(self.blocks)),
+            persistent=False,
+        )
+        self.noise_in_eval = False
+
+    def set_noise_profile(self, profile):
+        profile = torch.as_tensor(
+            profile,
+            dtype=self.default_noise_profile.dtype,
+            device=self.default_noise_profile.device,
+        )
+        if profile.shape != self.default_noise_profile.shape:
+            raise ValueError(
+                f"Ожидался профиль из {len(self.blocks)} значений, "
+                f"получена форма {tuple(profile.shape)}"
+            )
+        self.default_noise_profile.copy_(profile)
+
+    def set_noise_in_eval(self, enabled):
+        self.noise_in_eval = bool(enabled)
+
+    def _prepare_profile(self, profile, batch_size, device, dtype):
+        if profile is None:
+            profile = self.default_noise_profile
+        profile = torch.as_tensor(profile, device=device, dtype=dtype)
+        if profile.ndim == 1:
+            if profile.numel() != len(self.blocks):
+                raise ValueError(
+                    f"Ожидалось {len(self.blocks)} значений шума, "
+                    f"получено {profile.numel()}"
+                )
+            profile = profile.unsqueeze(0).expand(batch_size, -1)
+        if profile.shape != (batch_size, len(self.blocks)):
+            raise ValueError(
+                f"Ожидалась форма ({batch_size}, {len(self.blocks)}), "
+                f"получена {tuple(profile.shape)}"
+            )
+        if not torch.allclose(profile, profile[:1].expand_as(profile)):
+            raise ValueError(
+                "Параметрический шум должен быть одинаковым для всего батча"
+            )
+        return profile
+
+    def forward(self, inputs, noise_profile=None):
+        profile = self._prepare_profile(
+            noise_profile,
+            inputs.size(0),
+            inputs.device,
+            inputs.dtype,
+        )
+        conditioning = self.conditioner(profile)
+        sigmas = {
+            block: profile[0, index]
+            for index, block in enumerate(self.blocks)
+        }
+        outputs = {"inp": inputs}
+        states = {}
+        blocks = ["inp", *self.blocks]
+        for block in self.blocks:
+            block_input = outputs["inp"] if block == "V1" else None
+            output, state = getattr(self, block)(
+                block_input,
+                batch_size=inputs.size(0),
+                device=inputs.device,
+                sigma_axon=sigmas[block],
+                conditioning=conditioning[block],
+                noise_in_eval=self.noise_in_eval,
+            )
+            outputs[block] = output
+            states[block] = state
+        for _ in range(1, self.times):
+            new_outputs = {"inp": inputs}
+            for index, block in enumerate(self.blocks, start=1):
+                output, state = getattr(self, block)(
+                    outputs[blocks[index - 1]],
+                    states[block],
+                    sigma_axon=sigmas[block],
+                    conditioning=conditioning[block],
+                    noise_in_eval=self.noise_in_eval,
+                )
+                new_outputs[block] = output
+                states[block] = state
+            outputs = new_outputs
+        return self.decoder(outputs["IT"])
+
+
 class NormalizedModel(nn.Module):
     def __init__(self, model):
         super().__init__()
@@ -194,5 +356,14 @@ class NormalizedModel(nn.Module):
             "std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
         )
 
-    def forward(self, inputs):
-        return self.model((inputs - self.mean) / self.std)
+    def forward(self, inputs, noise_profile=None):
+        normalized = (inputs - self.mean) / self.std
+        if noise_profile is None:
+            return self.model(normalized)
+        return self.model(normalized, noise_profile)
+
+    def set_noise_profile(self, profile):
+        self.model.set_noise_profile(profile)
+
+    def set_noise_in_eval(self, enabled):
+        self.model.set_noise_in_eval(enabled)

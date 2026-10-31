@@ -1,2 +1,0 @@
-forward|V1|V2|V4|IT
-reverse|IT|V4|V2|V1

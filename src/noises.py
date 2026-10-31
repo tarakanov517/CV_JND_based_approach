@@ -72,24 +72,31 @@ class NoisyConv2d(nn.Conv2d):
         self.sigma_dendrite = float(sigma_dendrite)
         self.noise_scale = 1.0
 
-    def forward(self, inputs):
+    def forward(
+        self,
+        inputs,
+        sigma_axon=None,
+        sigma_dendrite=None,
+        noise_in_eval=False,
+    ):
         weight = self.weight
-        if self.training:
-            if self.sigma_axon != 0:
+        if self.training or noise_in_eval:
+            axon = self.sigma_axon if sigma_axon is None else sigma_axon
+            dendrite = (
+                self.sigma_dendrite
+                if sigma_dendrite is None
+                else sigma_dendrite
+            )
+            if torch.is_tensor(axon) or axon != 0:
                 weight = weight * (
                     1.0
-                    + self.sigma_axon
-                    * self.noise_scale
-                    * torch.randn_like(weight)
+                    + axon * self.noise_scale * torch.randn_like(weight)
                 )
-            if self.sigma_dendrite != 0:
+            if torch.is_tensor(dendrite) or dendrite != 0:
                 scale = self.weight.detach().std(unbiased=False).clamp_min(1e-8)
                 weight = (
                     weight
-                    + self.sigma_dendrite
-                    * self.noise_scale
-                    * scale
-                    * torch.randn_like(weight)
+                    + dendrite * self.noise_scale * scale * torch.randn_like(weight)
                 )
         return F.conv2d(
             inputs,
