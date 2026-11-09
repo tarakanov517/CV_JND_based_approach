@@ -36,6 +36,9 @@ def parse_args():
     parser.add_argument("--zero-probability", type=float, default=0.20)
     parser.add_argument("--shared-probability", type=float, default=0.30)
     parser.add_argument("--single-probability", type=float, default=0.30)
+    parser.add_argument("--fixed-profile", type=float, nargs=4,
+                        help="Train a conditional-architecture specialist at one profile")
+    parser.add_argument("--save-final-checkpoint", action="store_true")
     return parser.parse_args()
 
 
@@ -76,6 +79,9 @@ def current_max_sigma(args, epoch):
 
 
 def sample_profile(args, maximum, device):
+    if getattr(args, "fixed_profile", None) is not None:
+        # Same warmup/ramp as the distribution-trained model.
+        return torch.tensor(args.fixed_profile, device=device) * (maximum / args.max_sigma), "shared"
     draw = torch.rand((), device=device).item()
     zero_end = args.zero_probability
     shared_end = zero_end + args.shared_probability
@@ -203,9 +209,12 @@ def main():
             model, validation_loader, device, anchor_profile
         )
         scheduler.step()
-        selection_score = (
-            validation_zero["accuracy"] + validation_anchor["accuracy"]
-        ) / 2
+        if args.fixed_profile is None:
+            selection_score = (validation_zero["accuracy"] + validation_anchor["accuracy"]) / 2
+        else:
+            selection_score = evaluate_profile(
+                model, validation_loader, device, args.fixed_profile
+            )["accuracy"]
         row = {
             "epoch": epoch,
             "train_loss": training["loss"],
@@ -231,7 +240,7 @@ def main():
             f"val_anchor={validation_anchor['accuracy']:.4f}",
             flush=True,
         )
-        if selection_score > best_score:
+        if selection_score > best_score or args.save_final_checkpoint:
             best_score = selection_score
             best_state = copy.deepcopy(model.state_dict())
 
@@ -246,6 +255,9 @@ def main():
         "name": args.name,
         "seed": args.seed,
         "model_kind": "conditional_axon",
+        "fixed_profile": args.fixed_profile,
+        "arguments": {key: str(value) if isinstance(value, Path) else value
+                      for key, value in vars(args).items()},
         "blocks": BLOCKS,
         "epochs": args.epochs,
         "max_sigma": args.max_sigma,

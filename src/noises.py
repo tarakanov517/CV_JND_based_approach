@@ -80,7 +80,7 @@ class NoisyConv2d(nn.Conv2d):
         noise_in_eval=False,
     ):
         weight = self.weight
-        if self.training or noise_in_eval:
+        if self.training or noise_in_eval or getattr(self, "noise_in_eval", False):
             axon = self.sigma_axon if sigma_axon is None else sigma_axon
             dendrite = (
                 self.sigma_dendrite

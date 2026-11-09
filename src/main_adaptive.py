@@ -39,6 +39,11 @@ def parse_args():
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--attack-epsilons", type=float, nargs="+", default=(2, 4, 8))
     parser.add_argument("--pgd-steps", type=int, default=10)
+    parser.add_argument("--skip-test-evaluation", action="store_true",
+                        help="Save training outputs; use the common evaluator separately")
+    parser.add_argument("--max-epochs", type=int,
+                        help="Total budget including warmup and consolidation")
+    parser.add_argument("--warmup-epochs", type=int, default=0)
     return parser.parse_args()
 
 
@@ -98,11 +103,13 @@ def evaluate_cached(model, batches, device):
     return correct / total
 
 
-def train_stage(model, loader, optimizer, device, epochs, start_epoch, label):
+def train_stage(model, loader, optimizer, device, epochs, start_epoch, label, scheduler=None):
     epoch = start_epoch
     for _ in range(epochs):
         epoch += 1
         loss, accuracy = train_epoch(model, loader, optimizer, device)
+        if scheduler is not None:
+            scheduler.step()
         print(
             f"adaptive_epoch={epoch} stage={label} "
             f"train_loss={loss:.4f} train_acc={accuracy:.4f}",
@@ -131,6 +138,10 @@ def main():
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
+    if args.max_epochs is not None and args.max_epochs <= args.warmup_epochs + args.consolidation_epochs:
+        raise SystemExit("max-epochs must leave room for adaptive search")
+    scheduler = (torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.max_epochs)
+                 if args.max_epochs else None)
 
     baseline_validation = evaluate(model, validation_loader, device)["accuracy"]
     clean_floor = baseline_validation - args.clean_drop_limit
@@ -147,6 +158,9 @@ def main():
     controller_score = evaluate_cached(model, controller_batches, device)
     history = []
     adaptive_epoch = 0
+    if args.warmup_epochs:
+        adaptive_epoch = train_stage(model, train_loader, optimizer, device,
+                                     args.warmup_epochs, 0, "warmup", scheduler)
 
     for block in args.order:
         accepted_state = copy.deepcopy(model.state_dict())
@@ -155,6 +169,8 @@ def main():
         accepted_score = controller_score
 
         for level in args.levels:
+            if args.max_epochs is not None and adaptive_epoch + args.epochs_per_level > args.max_epochs - args.consolidation_epochs:
+                break
             if level <= profile[block]:
                 continue
             profile[block] = float(level)
@@ -167,6 +183,7 @@ def main():
                 args.epochs_per_level,
                 adaptive_epoch,
                 f"{block}_{level:.2f}",
+                scheduler,
             )
             clean_validation = evaluate(model, validation_loader, device)["accuracy"]
             transfer_validation = evaluate_cached(model, controller_batches, device)
@@ -203,6 +220,10 @@ def main():
 
         model.load_state_dict(accepted_state)
         optimizer.load_state_dict(accepted_optimizer_state)
+        if scheduler is not None:
+            # Rejected epochs still consumed compute: keep the global LR clock.
+            for group, lr in zip(optimizer.param_groups, scheduler.get_last_lr()):
+                group["lr"] = lr
         profile = accepted_profile
         controller_score = accepted_score
         set_axon_profile(model, profile)
@@ -216,9 +237,10 @@ def main():
         train_loader,
         optimizer,
         device,
-        args.consolidation_epochs,
+        (args.max_epochs - adaptive_epoch if args.max_epochs else args.consolidation_epochs),
         adaptive_epoch,
         "consolidation",
+        scheduler,
     )
     consolidation_clean = evaluate(model, validation_loader, device)["accuracy"]
     consolidation_transfer = evaluate_cached(model, controller_batches, device)
@@ -261,9 +283,12 @@ def main():
         writer.writeheader()
         writer.writerows(history)
 
-    clean = evaluate(model, test_loader, device)
+    clean = (evaluate(model, test_loader, device)
+             if not args.skip_test_evaluation else {"accuracy": None})
     result = {
         "name": args.name,
+        "arguments": {key: str(value) if isinstance(value, Path) else value
+                      for key, value in vars(args).items()},
         "noise_kind": "axon",
         "noise_block": "profile",
         "profile_family": "adaptive",
@@ -282,7 +307,7 @@ def main():
         "attack_epsilons_px": args.attack_epsilons,
         "pgd_steps": args.pgd_steps,
     }
-    for epsilon_px in args.attack_epsilons:
+    for epsilon_px in (() if args.skip_test_evaluation else args.attack_epsilons):
         epsilon = epsilon_px / 255
         key = epsilon_key(epsilon_px)
         result[f"fgsm_accuracy_eps{key}"] = evaluate(
