@@ -1,0 +1,2 @@
+model,seed,profile,noise_mode,epsilon_px,examples,clean_accuracy,white_pgd_accuracy,transfer_pgd_accuracy,pgd_steps,restarts,eot_samples,mc_samples,subset_seed
+fixed_050,42,"[0.5, 0.5, 0.5, 0.5]",off,4.0,512,0.71875,0.00390625,0.361328125,50,5,1,1,2026

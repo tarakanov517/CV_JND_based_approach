@@ -1,0 +1,33 @@
+{
+  "name": "fixed_100",
+  "seed": 44,
+  "model_kind": "plain_fixed",
+  "axon_profile": {
+    "V1": 1.0,
+    "V2": 1.0,
+    "V4": 1.0,
+    "IT": 1.0
+  },
+  "best_validation_accuracy": 0.6588021778584392,
+  "arguments": {
+    "baseline_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1/baseline/seed_44",
+    "output_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1",
+    "name": "fixed_100",
+    "seed": 44,
+    "profile": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "dataset": "ilee0022/Caltech-256",
+    "epochs": 100,
+    "batch_size": 32,
+    "workers": 8,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "warmup": 5,
+    "ramp": 25,
+    "save_final_checkpoint": true
+  }
+}

@@ -1,0 +1,2 @@
+model,seed,profile,noise_mode,epsilon_px,examples,clean_accuracy,white_pgd_accuracy,transfer_pgd_accuracy,pgd_steps,restarts,eot_samples,mc_samples,subset_seed
+conditional_axon,43,"[0.5, 0.5, 0.5, 0.5]",on,4.0,512,0.6484375,0.07421875,0.572265625,50,5,16,3,2026

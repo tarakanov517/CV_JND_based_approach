@@ -1,0 +1,2 @@
+model,seed,profile,noise_mode,epsilon_px,examples,clean_accuracy,white_pgd_accuracy,transfer_pgd_accuracy,pgd_steps,restarts,eot_samples,mc_samples,subset_seed
+adaptive_reverse,42,"[0.0, 0.25, 0.699999988079071, 2.5]",off,4.0,512,0.6328125,0.0,0.029296875,50,5,1,1,2026

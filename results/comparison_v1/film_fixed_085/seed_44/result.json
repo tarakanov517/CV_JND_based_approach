@@ -1,0 +1,59 @@
+{
+  "name": "film_fixed_085",
+  "seed": 44,
+  "model_kind": "conditional_axon",
+  "fixed_profile": [
+    0.85,
+    0.85,
+    0.85,
+    0.85
+  ],
+  "arguments": {
+    "name": "film_fixed_085",
+    "baseline_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1/baseline/seed_44",
+    "output_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1",
+    "dataset": "ilee0022/Caltech-256",
+    "seed": 44,
+    "batch_size": 32,
+    "workers": 8,
+    "epochs": 100,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "max_sigma": 2.5,
+    "anchor_sigma": 0.85,
+    "conditioner_hidden": 128,
+    "noise_warmup_epochs": 5,
+    "noise_ramp_epochs": 25,
+    "zero_probability": 0.2,
+    "shared_probability": 0.3,
+    "single_probability": 0.3,
+    "fixed_profile": [
+      0.85,
+      0.85,
+      0.85,
+      0.85
+    ],
+    "save_final_checkpoint": true
+  },
+  "blocks": [
+    "V1",
+    "V2",
+    "V4",
+    "IT"
+  ],
+  "epochs": 100,
+  "max_sigma": 2.5,
+  "anchor_sigma": 0.85,
+  "conditioner_hidden": 128,
+  "noise_warmup_epochs": 5,
+  "noise_ramp_epochs": 25,
+  "sampling_probabilities": {
+    "zero": 0.2,
+    "shared": 0.3,
+    "single": 0.3,
+    "independent": 0.19999999999999996
+  },
+  "best_selection_score": 0.5633393829401089,
+  "validation_zero_accuracy": 0.6860254083484574,
+  "validation_anchor_accuracy": 0.6399274047186932
+}

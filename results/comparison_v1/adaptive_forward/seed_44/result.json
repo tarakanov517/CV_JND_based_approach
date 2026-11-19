@@ -1,0 +1,80 @@
+{
+  "name": "adaptive_forward",
+  "arguments": {
+    "name": "adaptive_forward",
+    "order": [
+      "V1",
+      "V2",
+      "V4",
+      "IT"
+    ],
+    "baseline_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1/baseline/seed_44",
+    "output_dir": "/home/arilmusaev/conditional-noise/results/comparison_v1",
+    "dataset": "ilee0022/Caltech-256",
+    "seed": 44,
+    "batch_size": 32,
+    "workers": 8,
+    "levels": [
+      0.1,
+      0.25,
+      0.4,
+      0.55,
+      0.7,
+      0.85,
+      1.0,
+      1.25,
+      1.5,
+      1.75,
+      2.0,
+      2.25,
+      2.5
+    ],
+    "epochs_per_level": 4,
+    "consolidation_epochs": 10,
+    "clean_drop_limit": 0.1,
+    "controller_examples": 512,
+    "controller_epsilon": 4.0,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "attack_epsilons": [
+      2,
+      4,
+      8
+    ],
+    "pgd_steps": 10,
+    "skip_test_evaluation": true,
+    "max_epochs": 100,
+    "warmup_epochs": 5
+  },
+  "noise_kind": "axon",
+  "noise_block": "profile",
+  "profile_family": "adaptive",
+  "seed": 44,
+  "order": [
+    "V1",
+    "V2",
+    "V4",
+    "IT"
+  ],
+  "axon_profile": {
+    "V1": 2.5,
+    "V2": 0.4,
+    "V4": 0.55,
+    "IT": 0.0
+  },
+  "sigma_axon": 0.0,
+  "sigma_dendrite": 0.0,
+  "baseline_validation_accuracy": 0.7509981851179673,
+  "clean_floor": 0.6509981851179674,
+  "controller_transfer_pgd_eps4": 0.578125,
+  "controller_examples": 512,
+  "adaptive_epochs": 100,
+  "consolidation_decision": "accept",
+  "clean_accuracy": null,
+  "attack_epsilons_px": [
+    2,
+    4,
+    8
+  ],
+  "pgd_steps": 10
+}
